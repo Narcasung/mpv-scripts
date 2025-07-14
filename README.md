@@ -2,21 +2,21 @@
 
 Script to remember Anime4k (https://github.com/bloc97/Anime4K) status on file or folder basis by generating and reading a log file in mpv config's folder.
 
-Comes with a folder or file mode. Folder mode will silently enable Anime4k to the saved mode for all the files in the folder. File mode does so on a per file basis.
-Web videos will only work in file mode.
-If a file has both a file and a folder config saved, the file config will take precedence.
+* Comes with a folder or file mode. Folder mode will silently enable Anime4k to the saved mode for all the files in the folder. File mode does so on a per file basis.
+* Web videos will only work in file mode.
+* If a file has both a file and a folder config saved, the file config will take precedence.
 
-Once an unrecognized file loads, a prompt will ask whether to activate Anime4k for the folder/file.
-Choosing yes will activate the default Anime4k mode (default: A) and save the choice for the whole folder/file.
-Choosing no will disable Anime4k and save the choice for the whole folder/file.
-If you want to change your choice, use `k` (default) to bring up the prompt again.
-From there you can also press the `delete` key to wipe the current folder/file info from the log.
+* Once an unrecognized file loads, a prompt will ask whether to activate Anime4k for the folder/file.
+* Choosing yes will activate the default Anime4k mode (default: A) and save the choice for the whole folder/file.
+* Choosing no will disable Anime4k and save the choice for the whole folder/file.
+* If you want to change your choice, use `k` (default) to bring up the prompt again.
+* From there you can also press the `delete` key to wipe the current folder/file info from the log.
 
-## install
+## Install
 
 Just drop auto4k.lua in the `MPV/scripts` folder.
 
-### changes to make in input.conf
+### Changes to make in input.conf
 
 For the script to work correctly, you need to override the Anime4k input commands with these custom ones:
 
@@ -34,7 +34,7 @@ k script-binding display-auto4k
 to display the prompt manually.
 You can of course change the keybind to whatever you want to prevent conflict with the rest of your inputs.
 
-### options
+### Options
 
 Comes with configurable options:
 
@@ -61,11 +61,11 @@ Put in auto4k.conf in `MPV/script-opts`. A sample file is available.
 
 # recent.lua
 
-Fork from https://github.com/hacel/recent.
-Removed manual save and number selection feature.
-Added youtube playlist support and log culling feature.
-Changed the overlay appearance to look like Blackbox.
-The source script changed a lot since I made this, maybe I'll update it in the future.
+* Fork from https://github.com/hacel/recent.
+* Removed manual save and number selection feature.
+* Added youtube playlist support and log culling feature.
+* Changed the overlay appearance to look like Blackbox.
+* The source script changed a lot since I made this, maybe I'll update it in the future.
 
 # (WIP) help.lua
 
