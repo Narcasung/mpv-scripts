@@ -10,13 +10,13 @@ Script to remember Anime4k (https://github.com/bloc97/Anime4K) status on file or
 * Choosing yes will activate the default Anime4k mode (default: A) and save the choice for the whole folder/file.
 * Choosing no will disable Anime4k and save the choice for the whole folder/file.
 * If you want to change your choice, use `k` (default) to bring up the prompt again.
-* From there you can also press the `delete` key to wipe the current folder/file info from the log.
+* From there you can press the `delete` key to wipe the current folder/file info from the log.
 
 ## Install
 
 Just drop auto4k.lua in the `MPV/scripts` folder.
 
-### Changes to make in input.conf
+### Changes to input.conf
 
 For the script to work correctly, you need to override the Anime4k input commands with these custom ones:
 
@@ -65,7 +65,7 @@ Fork from https://github.com/hacel/recent.
 * Removed manual save and number selection feature.
 * Added youtube playlist support and log culling feature.
 * Changed the overlay appearance to look like Blackbox.
-* The source script changed a lot since I made this, maybe I'll update it in the future.
+The source script changed a lot since I made this, maybe I'll update it in the future.
 
 # (WIP) help.lua
 
