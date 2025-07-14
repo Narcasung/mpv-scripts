@@ -61,7 +61,7 @@ Put in auto4k.conf in `MPV/script-opts`. A sample file is available.
 
 # recent.lua
 
-* Fork from https://github.com/hacel/recent.
+Fork from https://github.com/hacel/recent.
 * Removed manual save and number selection feature.
 * Added youtube playlist support and log culling feature.
 * Changed the overlay appearance to look like Blackbox.
