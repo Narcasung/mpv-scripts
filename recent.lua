@@ -557,18 +557,6 @@ function catch_playlist(property, value)
     end
 end
 
--- if o.auto_save then
---     mp.register_event("end-file", function() write_log(false) end)
--- else
---     mp.add_key_binding(o.save_bind, "recent-save", function()
---         write_log(false)
---         mp.osd_message("Saved entry to log")
---     end)
--- end
-
--- if o.auto_run_idle then
---     mp.observe_property("idle-active", "bool", display_list)
--- end
 local function run_idle()
     mp.observe_property("idle-active", "bool", function(_, v)
         if o.auto_run_idle and v and not uosc_available then
