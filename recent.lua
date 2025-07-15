@@ -3,6 +3,12 @@ local o = {
     -- you need to bind a save key if you disable it
     auto_save = true,
     save_bind = "",
+    -- When automatically saving, skip entries with playback positions
+    -- past this value, in percent. 100 saves all, around 95 is
+    -- good for skipping videos that have reached final credits.
+    auto_save_skip_past = 100,
+    -- Display only the latest file from each directory
+    hide_same_dir = false,
     -- Runs automatically when --idle
     auto_run_idle = true,
     -- Write watch later for current file when switching
@@ -18,6 +24,9 @@ local o = {
     date_format = "%d/%m/%y %X",
     -- Show file paths instead of media-title
     show_paths = false,
+    -- slice long filenames, and how many chars to show
+    slice_longfilenames = false,
+    slice_longfilenames_amount = 100,
     -- Split paths to only show the file or show the full path
     split_paths = true,
     -- Font settings
@@ -27,17 +36,19 @@ local o = {
     hi_color = "H46CFFF",
     -- Draw ellipsis at start/end denoting ommited entries
     ellipsis = false,
-    -- Max lines
+    -- Number of lines to display in the list, adjust to your mpv height
     max_lines = 10,
+    -- Cull old entries from log if it gets too big
     max_log_lines = 10000
 }
+
 (require "mp.options").read_options(o)
 local utils = require("mp.utils")
-local msg = require("mp.msg")
 o.log_path = utils.join_path(mp.find_config_file("."), o.log_path)
 
 local cur_title, cur_path
 local list_drawn = false
+
 -- variables for custom playlist detection
 local playlist_url = ""
 local playlist_first_entry = ""
@@ -45,6 +56,95 @@ local playlist_given = false
 
 function esc_string(str)
     return str:gsub("([%p])", "%%%1")
+end
+
+function is_protocol(path)
+    return type(path) == 'string' and path:match('^%a[%a%d-_]+://') ~= nil
+end
+
+function normalize(path)
+    if normalize_path ~= nil then
+        if normalize_path then
+            path = mp.command_native({"normalize-path", path})
+        else
+            local directory = mp.get_property("working-directory", "")
+            path = utils.join_path(directory, path:gsub('^%.[\\/]', ''))
+            if is_windows then
+                path = path:gsub("\\", "/")
+            end
+        end
+        return path
+    end
+
+    normalize_path = false
+
+    local commands = mp.get_property_native("command-list", {})
+    for _, command in ipairs(commands) do
+        if command.name == "normalize-path" then
+            normalize_path = true
+            break
+        end
+    end
+    return normalize(path)
+end
+
+-- from http://lua-users.org/wiki/LuaUnicode
+local UTF8_PATTERN = '[%z\1-\127\194-\244][\128-\191]*'
+
+-- return a substring based on utf8 characters
+-- like string.sub, but negative index is not supported
+local function utf8_sub(s, i, j)
+    local t = {}
+    local idx = 1
+    for match in s:gmatch(UTF8_PATTERN) do
+        if j and idx > j then
+            break
+        end
+        if idx >= i then
+            t[#t + 1] = match
+        end
+        idx = idx + 1
+    end
+    return table.concat(t)
+end
+
+function split_ext(filename)
+    local idx = filename:match(".+()%.%w+$")
+    if idx then
+        filename = filename:sub(1, idx - 1)
+    end
+    return filename
+end
+
+function strip_title(str)
+    if o.slice_longfilenames and str:len() > o.slice_longfilenames_amount + 5 then
+        str = utf8_sub(str, 1, o.slice_longfilenames_amount) .. "..."
+    end
+    return str
+end
+
+function get_ext(path)
+    if is_protocol(path) then
+        return path:match("^(%a[%w.+-]-)://"):upper()
+    else
+        return path:match(".+%.(%w+)$"):upper()
+    end
+end
+
+function get_dir(path)
+    if is_protocol(path) then
+        return path
+    end
+    local dir, filename = utils.split_path(path)
+    return dir
+end
+
+function get_filename(item)
+    if is_protocol(item.path) then
+        return item.title
+    end
+    local dir, filename = utils.split_path(item.path)
+    return filename
 end
 
 function get_path()
@@ -56,11 +156,14 @@ function get_path()
         path = mp.get_property("path")
     end
     local title = mp.get_property("media-title"):gsub("\"", "")
-    if not path then return end
-    if path:find("http.?://") or path:find("magnet:%?") then
+    if not path then
+        return
+    end
+    if is_protocol(path) then
         return title, path
     else
-        return title, utils.join_path(mp.get_property("working-directory"), path)
+        local path = normalize(path)
+        return title, path
     end
 end
 
@@ -92,10 +195,14 @@ end
 
 function read_log(func)
     local f = io.open(o.log_path, "r")
-    if not f then return end
+    if not f then
+        return
+    end
     local list = {}
     for line in f:lines() do
-        table.insert(list, (func(line)))
+        if not line:match("^%s*$") then
+            table.insert(list, (func(line)))
+        end
     end
     f:close()
     return list
@@ -103,22 +210,78 @@ end
 
 function read_log_table()
     return read_log(function(line)
-        local t, p
-        -- for compatibility with old log format
-        -- if line:find("^.-%] \".-\" |") then
-            d, t, p = line:match("^%[(.-) .-\"(.-)\" | (.*)$")
-        -- else
-        --     p = line:match("^%[.-%] (.*)$")
-        --     t = p
-        -- end
-        return {date = d, title = t, path = p}
+        local d, t, p
+        d, t, p = line:match("^%[(.-) .-\"(.-)\" | (.*)$")
+        return {
+            date = d,
+            title = t,
+            path = p
+        }
     end)
+end
+
+function table_reverse(table)
+    local reversed_table = {}
+    for i = 1, #table do
+        reversed_table[#table - i + 1] = table[i]
+    end
+    return reversed_table
+end
+
+function hide_same_dir(content)
+    local lists = {}
+    local dir_cache = {}
+    for i = 1, #content do
+        local dirname = get_dir(content[#content - i + 1].path)
+        if not dir_cache[dirname] then
+            table.insert(lists, content[#content - i + 1])
+        end
+        if dirname ~= "." then
+            dir_cache[dirname] = true
+        end
+    end
+    return table_reverse(lists)
+end
+
+local dyn_menu = {
+    ready = false,
+    type = 'submenu',
+    submenu = {}
+}
+
+function update_dyn_menu_items()
+    local menu = {}
+    local lists = read_log_table()
+    if not lists or not lists[1] then
+        return
+    end
+    if o.hide_same_dir then
+        lists = hide_same_dir(lists)
+    end
+    if #lists > o.list_show_amount then
+        length = o.list_show_amount
+    else
+        length = #lists
+    end
+    for i = 1, length do
+        menu[#menu + 1] = {
+            title = string.format('%s\t%s',
+                o.show_paths and strip_title(split_ext(get_filename(lists[#lists - i + 1]))) or
+                    strip_title(split_ext(lists[#lists - i + 1].title)), get_ext(lists[#lists - i + 1].path)),
+            cmd = string.format("loadfile '%s'", lists[#lists - i + 1].path)
+        }
+    end
+    dyn_menu.submenu = menu
+    mp.commandv('script-message-to', 'dyn_menu', 'update', 'recent', utils.format_json(dyn_menu))
 end
 
 -- Write path to log on file end
 -- removing duplicates along the way
 function write_log(delete)
-    if not cur_path then return end
+    if not cur_path or
+        (cur_path:match("bd://") or cur_path:match("dvd://") or cur_path:match("dvb://") or cur_path:match("cdda://")) then
+        return
+    end
     local content = read_log(function(line)
         -- only delete entry if both name and path match (playlist custom module necessary)
         if line:find(esc_string(cur_path)) then
@@ -129,8 +292,9 @@ function write_log(delete)
     end)
     f = io.open(o.log_path, "w+")
     if content then
+        -- culls log if it gets too big
         local start = math.max(1, #content - (o.max_log_lines - 1))
-        for i=start, #content do
+        for i = start, #content do
             f:write(("%s\n"):format(content[i]))
         end
     end
@@ -138,50 +302,53 @@ function write_log(delete)
         f:write(("[%s] \"%s\" | %s\n"):format(os.date(o.date_format), cur_title, cur_path))
     end
     f:close()
+    if dyn_menu.ready then
+        update_dyn_menu_items()
+    end
 end
 
 -- Display list on OSD and terminal
 function draw_list(list, start, choice)
-    local header = string.format("{\\fscx%f}{\\fscy%f}{\\bord%f}{\\1c&H808080}",
-                o.font_scale*3/4, o.font_scale*3/4, o.border_size*3/4)
-    local msg = string.format("{\\fscx%f}{\\fscy%f}{\\bord%f}",
-                o.font_scale, o.font_scale, o.border_size)
+    local header = string.format("{\\fscx%f}{\\fscy%f}{\\bord%f}{\\1c&H808080}", o.font_scale * 3 / 4,
+        o.font_scale * 3 / 4, o.border_size * 3 / 4)
+    local msg = string.format("{\\fscx%f}{\\fscy%f}{\\bord%f}", o.font_scale, o.font_scale, o.border_size)
     local hi_start = string.format("{\\1c&H%s}", o.hi_color)
     local hi_end = "{\\1c&HFFFFFF}"
-    msg = header.."[Recent]\\N"..msg..hi_end
+    msg = header .. "[Recent]\\N" .. msg .. hi_end
 
     if o.ellipsis then
         if start ~= 0 then
-            msg = msg.."..."
+            msg = msg .. "..."
         end
-        msg = msg.."\\h\\N"
+        msg = msg .. "\\h\\N"
     end
     local size = #list
-    for i=1, math.min(o.max_lines, size-start), 1 do
+    for i = 1, math.min(o.max_lines, size - start), 1 do
         local key = i
-        local date = "("..list[size-start-i+1].date..")" or ""
+        local date = "(" .. list[size - start - i + 1].date .. ")" or ""
         local p
         if o.show_paths then
-            if o.split_paths and not list[size-start-i+1].path:find("^http.?://") then
-                _, p = utils.split_path(list[size-start-i+1].path)
+            if o.split_paths or is_protocol(list[size - start - i + 1].path) then
+                p = get_filename(list[size - start - i + 1])
             else
-                p = list[size-start-i+1].path or ""
+                p = list[size - start - i + 1].path or ""
             end
         else
-            p = list[size-start-i+1].title or list[size-start-i+1].path or ""
+            p = list[size - start - i + 1].title or list[size - start - i + 1].path or ""
         end
-            if i == choice+1 then
-                msg = msg..hi_start.."> "..date.." "..p.."\\N"..hi_end
-            else
-                msg = msg..date.." "..p.."\\N"
-            end
-            if not list_drawn then
-                --disable terminal display
-                --print(key..": "..p)
-            end
+        p = p:gsub("\\", "\\\239\187\191"):gsub("{", "\\{"):gsub("^ ", "\\h")
+        if i == choice + 1 then
+            msg = msg .. hi_start .. "> " .. date .. " " .. strip_title(p) .. "\\N" .. hi_end
+        else
+            msg = msg .. date .. " " .. strip_title(p) .. "\\N"
+        end
+        -- if not list_drawn then
+        --     disable terminal display
+        --     print(key..": "..p)
+        -- end
     end
-    if o.ellipsis and start+o.max_lines < size then
-        msg = msg .."..."
+    if o.ellipsis and start + o.max_lines < size then
+        msg = msg .. "..."
     end
     -- Remove OSD messages if exist
     mp.osd_message(" ", 0.1)
@@ -194,11 +361,11 @@ function select(list, start, choice, inc)
     if choice < 0 then
         choice = choice + 1
         start = start + inc
-    elseif choice >=  math.min(#list, o.max_lines) then
+    elseif choice >= math.min(#list, o.max_lines) then
         choice = choice - 1
         start = start + inc
     end
-    if start > math.max(#list-o.max_lines, 0) then
+    if start > math.max(#list - o.max_lines, 0) then
         start = start - 1
     elseif start < 0 then
         start = start + 1
@@ -211,14 +378,14 @@ end
 function delete(list, start, choice)
     local playing_path = cur_path
     local playing_title = cur_title
-    cur_path = list[#list-start-choice].path
-    cur_title = list[#list-start-choice].title
+    cur_path = list[#list - start - choice].path
+    cur_title = list[#list - start - choice].title
     if not cur_path then
         print("Failed to delete")
         return
     end
     write_log(true)
-    print("Deleted \""..cur_path.."\"")
+    print("Deleted \"" .. cur_path .. "\"")
     cur_path = playing_path
     cur_title = playing_title
 end
@@ -226,12 +393,49 @@ end
 -- Load file and remove binds
 function load(list, start, choice)
     unbind()
-    if start+choice >= #list then return end
+    if start + choice >= #list then
+        return
+    end
     if o.write_watch_later then
         mp.command("write-watch-later-config")
     end
-    -- msg.warn("path : "..list[#list-start-choice].path)
-    mp.commandv("loadfile", list[#list-start-choice].path, "replace")
+    mp.commandv("loadfile", list[#list - start - choice].path, "replace")
+end
+
+-- play last played file
+function play_last()
+    local lists = read_log_table()
+    if not lists or not lists[1] then
+        return
+    end
+    mp.commandv("loadfile", lists[#lists].path, "replace")
+end
+
+-- Open the recent submenu for uosc
+function open_menu(lists)
+    local menu = {
+        type = 'recent_menu',
+        title = 'Recent',
+        items = {{
+            title = 'Nothing here',
+            value = 'ignore'
+        }}
+    }
+    if #lists > o.list_show_amount then
+        length = o.list_show_amount
+    else
+        length = #lists
+    end
+    for i = 1, length do
+        menu.items[i] = {
+            title = o.show_paths and strip_title(split_ext(get_filename(lists[#lists - i + 1]))) or
+                strip_title(split_ext(lists[#lists - i + 1].title)),
+            hint = get_ext(lists[#lists - i + 1].path),
+            value = {"loadfile", lists[#lists - i + 1].path, "replace"}
+        }
+    end
+    local json = utils.format_json(menu)
+    mp.commandv('script-message-to', 'uosc', 'open-menu', json)
 end
 
 -- Display list and add keybinds
@@ -245,17 +449,28 @@ function display_list()
         mp.osd_message("Log empty")
         return
     end
+    if o.hide_same_dir then
+        list = hide_same_dir(list)
+    end
+    if uosc_available then
+        open_menu(list)
+        return
+    end
     local choice = 0
     local start = 0
     draw_list(list, start, choice)
     list_drawn = true
 
-    mp.add_forced_key_binding("UP", "recent-UP", function() 
+    mp.add_forced_key_binding("UP", "recent-UP", function()
         start, choice = select(list, start, choice, -1)
-    end, {repeatable=true})
+    end, {
+        repeatable = true
+    })
     mp.add_forced_key_binding("DOWN", "recent-DOWN", function()
         start, choice = select(list, start, choice, 1)
-    end, {repeatable=true})
+    end, {
+        repeatable = true
+    })
     mp.add_forced_key_binding("ENTER", "recent-ENTER", function()
         load(list, start, choice)
     end)
@@ -267,7 +482,9 @@ function display_list()
             return
         end
         start, choice = select(list, start, choice, 0)
-    end, {repeatable=true})
+    end, {
+        repeatable = true
+    })
     if o.mouse_controls then
         mp.add_forced_key_binding("WHEEL_UP", "recent-WUP", function()
             start, choice = select(list, start, choice, -1)
@@ -282,7 +499,39 @@ function display_list()
             unbind()
         end)
     end
-    mp.add_forced_key_binding("ESC", "recent-ESC", function() unbind() end)
+    mp.add_forced_key_binding("1", "recent-1", function()
+        load(list, start, 0)
+    end)
+    mp.add_forced_key_binding("2", "recent-2", function()
+        load(list, start, 1)
+    end)
+    mp.add_forced_key_binding("3", "recent-3", function()
+        load(list, start, 2)
+    end)
+    mp.add_forced_key_binding("4", "recent-4", function()
+        load(list, start, 3)
+    end)
+    mp.add_forced_key_binding("5", "recent-5", function()
+        load(list, start, 4)
+    end)
+    mp.add_forced_key_binding("6", "recent-6", function()
+        load(list, start, 5)
+    end)
+    mp.add_forced_key_binding("7", "recent-7", function()
+        load(list, start, 6)
+    end)
+    mp.add_forced_key_binding("8", "recent-8", function()
+        load(list, start, 7)
+    end)
+    mp.add_forced_key_binding("9", "recent-9", function()
+        load(list, start, 8)
+    end)
+    mp.add_forced_key_binding("0", "recent-0", function()
+        load(list, start, 9)
+    end)
+    mp.add_forced_key_binding("ESC", "recent-ESC", function()
+        unbind()
+    end)
 end
 
 -- remember if a youtube playlist has been passed
@@ -292,37 +541,88 @@ function catch_playlist(property, value)
             playlist_url = value
             playlist_given = true
         else
-            if (playlist_given == true) then 
+            if (playlist_given == true) then
                 -- var for comparing playlist
                 playlist_first_entry = mp.get_property("playlist/0/filename")
                 playlist_given = false
-                return end
-            if mp.get_property_number("playlist-count") > 1 and mp.get_property("playlist/0/filename") == playlist_first_entry then return end
+                return
+            end
+            if mp.get_property_number("playlist-count") > 1 and mp.get_property("playlist/0/filename") ==
+                playlist_first_entry then
+                return
+            end
             playlist_url = ""
             playlist_first_entry = ""
         end
     end
 end
 
-if o.auto_save then
-    mp.register_event("end-file", function() write_log(false) end)
-else
-    mp.add_key_binding(o.save_bind, "recent-save", function()
-        write_log(false)
-        mp.osd_message("Saved entry to log")
-    end)
-end
+-- if o.auto_save then
+--     mp.register_event("end-file", function() write_log(false) end)
+-- else
+--     mp.add_key_binding(o.save_bind, "recent-save", function()
+--         write_log(false)
+--         mp.osd_message("Saved entry to log")
+--     end)
+-- end
 
-if o.auto_run_idle then
-    mp.observe_property("idle-active", "bool", display_list)
+-- if o.auto_run_idle then
+--     mp.observe_property("idle-active", "bool", display_list)
+-- end
+local function run_idle()
+    mp.observe_property("idle-active", "bool", function(_, v)
+        if o.auto_run_idle and v and not uosc_available then
+            display_list()
+        end
+    end)
 end
 
 -- for custom playlist detection
 mp.observe_property("path", "string", catch_playlist)
 
+-- mpv-menu-plugin integration
+mp.register_script_message('menu-ready', function()
+    dyn_menu.ready = true
+    update_dyn_menu_items()
+end)
+
+-- check if uosc is running
+mp.register_script_message('uosc-version', function(version)
+    uosc_available = true
+end)
+mp.commandv('script-message-to', 'uosc', 'get-version', mp.get_script_name())
+
+mp.observe_property("display-hidpi-scale", "native", function(_, scale)
+    if scale then
+        display_scale = scale
+        run_idle()
+    end
+end)
+
 mp.register_event("file-loaded", function()
-    unbind()   
+    unbind()
     cur_title, cur_path = get_path()
 end)
 
+-- Using hook, as at the "end-file" event the playback position info is already unset.
+mp.add_hook("on_unload", 9, function()
+    if not o.auto_save then
+        return
+    end
+    local pos = mp.get_property("percent-pos")
+    if not pos then
+        return
+    end
+    if tonumber(pos) <= o.auto_save_skip_past then
+        write_log(false)
+    else
+        write_log(true)
+    end
+end)
+
 mp.add_key_binding(o.display_bind, "display-recent", display_list)
+mp.add_key_binding(o.save_bind, "recent-save", function()
+    write_log(false)
+    mp.osd_message("Saved entry to log")
+end)
+mp.add_key_binding(nil, "play-last", play_last)
