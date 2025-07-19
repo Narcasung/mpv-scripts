@@ -1,20 +1,16 @@
 # auto4k.lua
 
-Script to remember Anime4k (https://github.com/bloc97/Anime4K) status on file or folder basis by generating and reading a log file in mpv config's folder.
+Script to remember Anime4k (https://github.com/bloc97/Anime4K) status by generating and reading a log file in mpv config's folder.
 
-* Comes with a folder or file mode. Folder mode will silently enable Anime4k to the saved mode for all the files in the folder. File mode does so on a per file basis.
-* Web videos will only work in file mode.
-* If a file has both a file and a folder config saved, the file config will take precedence.
-
-* Once an unrecognized file loads, a prompt will ask whether to activate Anime4k for the folder/file.
-* Choosing yes will activate the default Anime4k mode (default: A) and save the choice for the whole folder/file.
-* Choosing no will disable Anime4k and save the choice for the whole folder/file.
-* If you want to change your choice, use `k` (default) to bring up the prompt again.
-* From there you can press the `delete` key to wipe the current folder/file info from the log.
+* Can apply and remember Anime4k mode to a single file or a whole playlist.
+* Once an unrecognized file loads, a prompt will ask whether to activate Anime4k for the file/playlist.
+* Choosing yes will activate the default Anime4k mode (default: A) and save the choice for the file/playlist.
+* Choosing no will disable Anime4k and save the choice for the file/playlist.
+* If you want to change your choice, use a keybind to bring up the prompt again.
 
 ## Install
 
-Just drop auto4k.lua in the `MPV/scripts` folder.
+Put auto4k.lua in the `MPV/scripts` folder.
 
 ### Changes to input.conf
 
@@ -28,11 +24,10 @@ Ctrl+7 script-binding auto4k-clear
 ```
 and
 ```
-k script-binding display-auto4k
+[a free keybind] script-binding display-auto4k
 ```
 
 to display the prompt manually.
-You can of course change the keybind to whatever you want to prevent conflict with the rest of your inputs.
 
 ### Options
 
@@ -49,10 +44,8 @@ auto_run=yes
 prompt_yes_no=yes
 # the default mode that will be activated if you choose yes. A, B, or C
 default_yes_mode=A
-# what mode(s) of the script is activated. "folder", "file", or "both"
-script_mode=both
-# whether the script starts in folder mode or file mode
-default_folder_mode=yes
+# whether the choices will be in playlist scope by default or not 
+default_playlist=yes
 font_size=100
 max_log_lines=1000
 ```
