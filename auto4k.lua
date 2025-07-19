@@ -21,9 +21,11 @@ local utils = require("mp.utils")
 o.log_path = mp.command_native({"expand-path", o.log_path})
 
 -- states
-local file_loaded = false
+local is_file_loaded = false
 local cur_file = ""
 local cur_mode = ""
+local is_playlist_scope = o.default_playlist
+local playlist = nil
 local is_prompt_drawn = false
 
 function prepend_shader_path(shader)
@@ -80,6 +82,33 @@ function hide()
     is_prompt_drawn = false
 end
 
+function get_playlist()
+    local pl = mp.get_property_native("playlist")
+    if #pl > 1 then
+        local result = {}
+        for i, v in ipairs(pl) do
+            table.insert(result, v.filename)
+        end
+        return result
+    else
+        return nil
+    end
+end
+
+function match_in_playlist(line)
+    if not playlist then
+        return false
+    end
+
+    for i, v in ipairs(playlist) do
+        if line:find(v, 1, true) then
+            return true
+        end
+    end
+
+    return false
+end
+
 function read_log(func)
     local f = io.open(o.log_path, "r")
     if not f then
@@ -93,22 +122,10 @@ function read_log(func)
     return list
 end
 
-function match_in_playlist(line)
-    local playlist = mp.get_property_native("playlist")
-
-    for _, v in ipairs(playlist) do
-        if line:find(v.filename, 1, true) then
-            return true
-        end
-    end
-
-    return false
-end
-
 function write_log(mode, p)
     p = p or {}
     local delete = p.delete or false
-    local playlist = p.playlist or false
+    local playlist_scope = p.playlist_scope or false
 
     if not cur_file then
         return
@@ -116,7 +133,7 @@ function write_log(mode, p)
 
     -- remove duplicates
     local content = read_log(function(line)
-        if (playlist and match_in_playlist(line)) or line:find(cur_file, 1, true) then
+        if (playlist_scope and match_in_playlist(line)) or line:find(cur_file, 1, true) then
             return nil
         else
             return line
@@ -131,17 +148,46 @@ function write_log(mode, p)
     end
 
     if not delete then
-        if playlist then
-            local playlist = mp.get_property_native("playlist")
-
-            for _, v in ipairs(playlist) do
-                f:write(("%s ::: %s\n"):format(v.filename, mode))
+        if playlist_scope then
+            for i, v in ipairs(playlist) do
+                f:write(("%s ::: %s\n"):format(v, mode))
             end
         else
             f:write(("%s ::: %s\n"):format(cur_file, mode))
         end
     end
     f:close()
+end
+
+function is_whole_playlist(log_line)
+    if playlist then
+        for i, v in ipairs(playlist) do
+            if v ~= cur_file then
+                local f = io.open(o.log_path, "r")
+                if not f then
+                    return false
+                end
+
+                local match_found = false
+                for line in f:lines() do
+                    if line:find(v, 1, true) and log_mode(log_line) == log_mode(line) then
+                        match_found = true
+                        break
+                    end
+                end
+
+                f:close()
+
+                if not match_found then
+                    return false
+                end
+            end
+        end
+        msg.info("Found whole playlist in log")
+        return true
+    else
+        return false
+    end
 end
 
 function find_log_line(file)
@@ -156,19 +202,19 @@ function find_log_line(file)
     local result = nil
 
     for line in f:lines() do
-        if file and line:match(escape(file) .. "%s+:::") then
+        if line:match(escape(file) .. "%s+:::") then
             result = line
             msg.info("Found existing file in log")
             break
         end
     end
+
     f:close()
     return result
 end
 
--- mode = "A" | "B" | "C" | "disabled" | "unset": passing Unset with no_write = false deletes entry from log
+-- mode = "A" | "B" | "C" | "disabled" | "unset": passing unset with no_write = false deletes entry from log
 -- p = {
--- [playlist] = boolean: apply change to whole playlist
 -- [no_write] = boolean: don't write change to log
 -- [no_osd] = boolean: don't display message on change
 -- }                
@@ -176,12 +222,6 @@ function enable_mode(mode, p)
     p = p or {}
     local no_write = p.no_write or false
     local no_osd = p.no_osd or false
-    local playlist
-    if p.playlist ~= nil then
-        playlist = p.playlist
-    else
-        playlist = o.default_playlist
-    end
 
     -- set shaders
     if mode ~= cur_mode then
@@ -193,7 +233,7 @@ function enable_mode(mode, p)
     if not no_write then
         write_log(mode, {
             delete = mode == "unset",
-            playlist = playlist
+            playlist_scope = is_playlist_scope
         })
     end
 
@@ -204,11 +244,13 @@ function enable_mode(mode, p)
         else
             local msg
             if mode == "disabled" then
-                msg = string.format("Anime4k disabled for this %s", playlist and "playlist" or "file")
+                msg = string.format("Anime4k disabled for this %s", is_playlist_scope and "playlist" or "file")
             elseif mode == "unset" then
-                msg = string.format("Anime4k disabled and log cleared for this %s", playlist and "playlist" or "file")
+                msg = string.format("Anime4k disabled and log cleared for this %s",
+                    is_playlist_scope and "playlist" or "file")
             else
-                msg = string.format("Anime4k enabled in %s mode for this %s", mode, playlist and "playlist" or "file")
+                msg = string.format("Anime4k enabled in %s mode for this %s", mode,
+                    is_playlist_scope and "playlist" or "file")
             end
             mp.osd_message(msg)
         end
@@ -216,23 +258,35 @@ function enable_mode(mode, p)
 end
 
 function draw_prompt(cursor, choices)
-    local normal_font = string.format("{\\fscx%f}{\\fscy%f}{\\1c&HFFFFFF}", o.font_size, o.font_size)
+    local white = "{\\1c&HFFFFFF}"
+    local grey = "{\\1c&H808080}"
+    local yellow = "{\\1c&H66FFFF}"
+    local red = "{\\1c&0000FF}"
+    local green = "{\\1c&00FF00}"
+    local lightblue = "{\\1c&HFFFF00}"
+    local normal_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size, o.font_size)
     local small_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size * 0.75, o.font_size * 0.75)
-    local header = string.format("Current file: {\\1c&H%s}%s{\\1c&HFFFFFF}",
-        cur_mode == "disabled" and "66FFFF" or cur_mode == "unset" and "0000FF" or "00FF00",
-        cur_mode:gsub("^%l", string.upper))
+    local header = string.format("Current mode: %s%s" .. white,
+        cur_mode == "disabled" and yellow or cur_mode == "unset" and red or green, cur_mode:gsub("^%l", string.upper))
     local prompt = cur_mode == "unset" and "\\NUse Anime4K?" or "\\NChange Anime4k mode?"
+    local mode =
+        string.format("\\NEditing " .. lightblue .. "[%s]" .. white, is_playlist_scope and "Playlist" or "File")
+    local switch_mode = string.format(grey .. "\\N%s for %s scope", is_playlist_scope and "→" or "←",
+        is_playlist_scope and "file" or "playlist")
     local osd_text = normal_font .. header .. prompt .. "\\N"
 
     for i, v in ipairs(choices) do
-        local suffix = string.format(small_font .. "\\h\\h[%s]", v.playlist and "Playlist" or "File")
-        local switch_mode = string.format("{\\1c&H808080}\\h\\hPress %s for %s scope", v.playlist and "→" or "←",
-            v.playlist and "file" or "playlist")
+        local selected = v.mode ~= "unset" and cur_mode == v.mode and "=" or ""
         if (cursor == i) then
-            osd_text = osd_text .. "\\N{\\1c&H66FFFF}> " .. v.text .. suffix .. switch_mode .. normal_font
+            osd_text = osd_text .. "\\N" .. yellow .. "> " .. selected .. v.text .. selected .. white
         else
-            osd_text = osd_text .. "\\N" .. v.text .. suffix .. normal_font
+            osd_text = osd_text .. "\\N" .. selected .. v.text .. selected
         end
+    end
+
+    osd_text = osd_text .. "\\N" .. mode
+    if playlist then
+        osd_text = osd_text .. small_font .. switch_mode
     end
 
     -- Remove OSD messages if exist
@@ -240,7 +294,7 @@ function draw_prompt(cursor, choices)
     mp.set_osd_ass(0, 0, osd_text)
 end
 
-function delete_from_log()
+function clear_log()
     if find_log_line(cur_file) then
         enable_mode("unset")
     end
@@ -258,17 +312,13 @@ function select(cursor, choices)
         mode = choice
     end
 
-    enable_mode(mode, {
-        playlist = choice.playlist
-    })
+    enable_mode(mode)
 end
 
-function change_scope(cursor, choices, playlist)
-    if choices[cursor].playlist ~= playlist then
-        local new_choices = choices
-        new_choices[cursor].playlist = playlist
-        draw_prompt(cursor, new_choices)
-        return new_choices
+function change_scope(cursor, choices, pl_scope)
+    if is_playlist_scope ~= pl_scope then
+        is_playlist_scope = pl_scope
+        draw_prompt(cursor, choices)
     end
 end
 
@@ -294,7 +344,7 @@ function match_mode(value)
         return "disabled"
     elseif v == "yes" then
         return o.default_yes_mode
-    elseif v == "delete" then
+    elseif v == "[clear log]" then
         return "unset"
     else
         return v
@@ -303,14 +353,8 @@ end
 
 function get_choices(mode)
     local base
-    if mode == "A" then
-        base = {"Mode B", "Mode C", "Disable", "Delete"}
-    elseif mode == "B" then
-        base = {"Mode A", "Mode C", "Disable", "Delete"}
-    elseif mode == "C" then
-        base = {"Mode A", "Mode B", "Disable", "Delete"}
-    elseif mode == "disabled" then
-        base = {"Mode A", "Mode B", "Mode C", "Delete"}
+    if mode ~= "unset" then
+        base = {"[Clear Log]", "Mode A", "Mode B", "Mode C", "Disable"}
     else
         base = o.default_yes_mode and {"Yes", "No"} or {"Mode A", "Mode B", "Mode C", "Disable"}
     end
@@ -318,7 +362,6 @@ function get_choices(mode)
     for i, v in ipairs(base) do
         table.insert(choices, {
             text = v,
-            playlist = o.default_playlist,
             mode = match_mode(v)
         })
     end
@@ -331,8 +374,8 @@ function display_prompt()
         return
     end
 
-    local cursor = 1
     local choices = get_choices(cur_mode)
+    local cursor = choices[1].mode == "unset" and 2 or 1
 
     draw_prompt(cursor, choices)
     is_prompt_drawn = true
@@ -347,27 +390,23 @@ function display_prompt()
     end, {
         repeatable = true
     })
-    mp.add_forced_key_binding("LEFT", "auto4k-LEFT", function()
-        if not choices[cursor].playlist then
-            choices = change_scope(cursor, choices, true)
-        end
-    end)
-    mp.add_forced_key_binding("RIGHT", "auto4k-RIGHT", function()
-        if choices[cursor].playlist then
-            choices = change_scope(cursor, choices, false)
-        end
-    end)
+    if playlist then
+        mp.add_forced_key_binding("LEFT", "auto4k-LEFT", function()
+            change_scope(cursor, choices, true)
+        end)
+        mp.add_forced_key_binding("RIGHT", "auto4k-RIGHT", function()
+            change_scope(cursor, choices, false)
+        end)
+    end
     mp.add_forced_key_binding("ENTER", "auto4k-ENTER", function()
-        enable_mode(choices[cursor].mode, {
-            playlist = choices[cursor].playlist
-        })
+        enable_mode(choices[cursor].mode)
         hide()
     end)
     mp.add_forced_key_binding("ESC", "auto4k-ESC", function()
         hide()
     end)
     mp.add_forced_key_binding("DEL", "auto4k-DEL", function()
-        delete_from_log()
+        clear_log()
         hide()
     end)
 end
@@ -383,12 +422,13 @@ function init()
     local log_line = find_log_line(cur_file)
 
     if log_line then
+        is_playlist_scope = is_whole_playlist(log_line)
         enable_mode(log_mode(log_line), {
             no_write = true,
             no_osd = true
         })
         if cur_mode ~= "disabled" then
-            msg.info("Enabling Anime4k in " .. cur_mode .. "mode for this file")
+            msg.info("Enabling Anime4k in " .. cur_mode .. " mode for this file")
         end
     elseif o.auto_run then
         msg.info("No log data found. Running prompt")
@@ -399,13 +439,19 @@ end
 -- display prompt after playback-restart event, since the file loaded osd message fires after it
 -- store file loaded in a state so seeks don't trigger the callback
 mp.register_event("playback-restart", function()
-    if not file_loaded then
+    if not is_file_loaded then
         init()
-        file_loaded = true
+        is_file_loaded = true
     end
 end)
 mp.register_event("start-file", function()
-    file_loaded = false
+    is_file_loaded = false
+end)
+mp.observe_property("playlist", "native", function()
+    playlist = get_playlist()
+    if not playlist then
+        is_playlist_scope = false
+    end
 end)
 mp.add_key_binding(nil, "display-auto4k", display_prompt)
 mp.add_key_binding(nil, "auto4k-A", function()
