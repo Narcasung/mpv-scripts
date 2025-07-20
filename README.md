@@ -2,10 +2,19 @@
 
 Script to remember Anime4K (https://github.com/bloc97/Anime4K) status by generating and reading a log file.
 
+![default](screenshots/default.png)
+
 * Can apply and remember Anime4K mode to a file or a whole playlist.
+
 * Once an unrecognized file loads, a menu will ask if you want to use Anime4K for the file/playlist.
+
+![prompt](screenshots/prompt.png)
+
 * Includes a bindable menu to check the active mode and change it.
+
 * Can disable logging. While it removes most of the script's features, it's still useful to check the current Anime4K mode.
+
+![nolog](screenshots/nolog.png)
 
 ## Install
 

@@ -273,12 +273,12 @@ function enable_mode(mode, p)
         else
             local msg
             if mode == "disabled" then
-                msg = string.format("Anime4k disabled for this %s", is_playlist_scope and "playlist" or "file")
+                msg = string.format("Anime4K disabled for this %s", is_playlist_scope and "playlist" or "file")
             elseif mode == "unset" then
-                msg = string.format("Anime4k disabled and log cleared for this %s",
+                msg = string.format("Anime4K disabled and log cleared for this %s",
                     is_playlist_scope and "playlist" or "file")
             else
-                msg = string.format("Anime4k enabled in %s mode for this %s", mode,
+                msg = string.format("Anime4K enabled in %s mode for this %s", mode,
                     is_playlist_scope and "playlist" or "file")
             end
             mp.osd_message(msg)
@@ -295,7 +295,7 @@ function draw_menu(cursor, choices)
     local lightblue = "{\\1c&HFFFF00}"
     local normal_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size, o.font_size)
     local small_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size * 0.75, o.font_size * 0.75)
-    local prompt = cur_mode == "unset" and "\\NUse Anime4K?" or "\\NChange Anime4k mode?"
+    local prompt = cur_mode == "unset" and "\\NUse Anime4K?" or "\\NChange Anime4K mode?"
     local osd_text = normal_font .. prompt .. "\\N"
 
     for i, v in ipairs(choices) do
@@ -468,7 +468,7 @@ function init()
                 no_osd = true
             })
             if cur_mode ~= "disabled" then
-                msg.info("Enabling Anime4k in " .. cur_mode .. " mode for this file")
+                msg.info("Enabling Anime4K in " .. cur_mode .. " mode for this file")
             end
         elseif o.auto_run then
             msg.info("No log data found. Running prompt")
