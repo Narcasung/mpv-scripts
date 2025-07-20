@@ -272,13 +272,11 @@ function draw_prompt(cursor, choices)
 
     for i, v in ipairs(choices) do
         local selected = (v.mode ~= "unset" and cur_mode == v.mode)
-        local current = selected and "=" or ""
         local current_color = v.mode == "disabled" and yellow or v.mode == "unset" and red or green
         if (cursor == i) then
-            osd_text = osd_text .. "\\N" .. yellow .. "> " .. current .. v.text .. current .. white
+            osd_text = osd_text .. "\\N" .. yellow .. "> " .. (selected and current_color or "") .. v.text .. white
         else
-            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. current .. v.text .. current ..
-                           (selected and white or "")
+            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. v.text .. (selected and white or "")
         end
     end
 
@@ -466,6 +464,8 @@ mp.observe_property("playlist", "native", function()
     playlist = get_playlist()
     if not playlist then
         is_playlist_scope = false
+    else
+        is_playlist_scope = o.default_playlist
     end
 end)
 mp.add_key_binding(nil, "display-auto4k", display_prompt)
