@@ -263,21 +263,22 @@ function draw_prompt(cursor, choices)
     local lightblue = "{\\1c&HFFFF00}"
     local normal_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size, o.font_size)
     local small_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size * 0.75, o.font_size * 0.75)
-    local header = string.format("Current mode: %s%s" .. white,
-        cur_mode == "disabled" and yellow or cur_mode == "unset" and red or green, cur_mode:gsub("^%l", string.upper))
     local prompt = cur_mode == "unset" and "\\NUse Anime4K?" or "\\NChange Anime4k mode?"
     local mode =
         string.format("\\NEditing " .. lightblue .. "[%s]" .. white, is_playlist_scope and "Playlist" or "File")
     local switch_mode = string.format(grey .. "\\N%s for %s scope", is_playlist_scope and "→" or "←",
         is_playlist_scope and "file" or "playlist")
-    local osd_text = normal_font .. header .. prompt .. "\\N"
+    local osd_text = normal_font .. prompt .. "\\N"
 
     for i, v in ipairs(choices) do
-        local selected = v.mode ~= "unset" and cur_mode == v.mode and "=" or ""
+        local selected = (v.mode ~= "unset" and cur_mode == v.mode)
+        local current = selected and "=" or ""
+        local current_color = v.mode == "disabled" and yellow or v.mode == "unset" and red or green
         if (cursor == i) then
-            osd_text = osd_text .. "\\N" .. yellow .. "> " .. selected .. v.text .. selected .. white
+            osd_text = osd_text .. "\\N" .. yellow .. "> " .. current .. v.text .. current .. white
         else
-            osd_text = osd_text .. "\\N" .. selected .. v.text .. selected
+            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. current .. v.text .. current ..
+                           (selected and white or "")
         end
     end
 
@@ -349,15 +350,21 @@ function match_mode(value)
 end
 
 function get_choices(mode)
-    local base = mode ~= "unset" and {"[Clear Log]", "Mode A", "Mode B", "Mode C"} or {"Mode A", "Mode B", "Mode C"}
+    local base = {}
 
-    if o.include_secondary_modes then
-        for i, v in ipairs({"Mode A+A", "Mode B+B", "Mode C+A"}) do
-            table.insert(base, v)
+    if mode == "unset" and o.prompt_yes_no then
+        base = {"Yes", "No"}
+    else
+        base = mode ~= "unset" and {"[Clear Log]", "Mode A", "Mode B", "Mode C"} or {"Mode A", "Mode B", "Mode C"}
+
+        if o.include_secondary_modes then
+            for i, v in ipairs({"Mode A+A", "Mode B+B", "Mode C+A"}) do
+                table.insert(base, v)
+            end
         end
-    end
 
-    table.insert(base, "Disabled")
+        table.insert(base, "Disabled")
+    end
 
     local choices = {}
     for i, v in ipairs(base) do
@@ -376,7 +383,14 @@ function display_prompt()
     end
 
     local choices = get_choices(cur_mode)
-    local cursor = choices[1].mode == "unset" and 2 or 1
+    local cursor = 1
+    if cur_mode ~= "unset" then
+        for i, v in ipairs(choices) do
+            if v.mode == cur_mode then
+                cursor = i
+            end
+        end
+    end
 
     draw_prompt(cursor, choices)
     is_prompt_drawn = true
