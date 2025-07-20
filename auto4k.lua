@@ -1,19 +1,23 @@
 local o = {
+    -- enables logging
+    -- if disabled, shaders will default to the ones defined in mpv.conf on each launch and never remember changes
+    -- the menu will still be able to detect which mode you're in and switch modes
+    enable_logging = true,
     -- log file path, default in mpv config's root folder
     log_path = "~~home/auto4k.log",
     -- anime4k shaders path. if installed correctly in MPV/shaders/, don't touch anything
     shader_path = "~~/shaders/",
-    -- auto displays the prompt on an unrecognized file
+    -- auto displays the menu on an unrecognized file
     auto_run = true,
-    -- draw a simple yes/no prompt on unrecognized file, or all modes
-    prompt_yes_no = true,
+    -- draw a simple yes/no menu on unrecognized file, or all modes
+    menu_yes_no = true,
     -- the mode that will be activated if you choose yes. A, B, C, A+A, B+B, or C+A
     default_yes_mode = "A",
     -- whether the choices will be in playlist scope by default or not 
     default_playlist = true,
     -- include A+A, B+B, C+A modes in the choices
     include_secondary_modes = true,
-    -- font size of the prompt
+    -- font size of the menu
     font_size = 100,
     -- cull oldest entries of the log if it goes beyond this number of lines
     max_log_lines = 1000
@@ -30,43 +34,69 @@ local cur_file = ""
 local cur_mode = ""
 local is_playlist_scope = o.default_playlist
 local playlist = nil
-local is_prompt_drawn = false
+local is_menu_drawn = false
+
+-- shaders names
+local clamp = "Anime4K_Clamp_Highlights.glsl"
+local rcnns_vl = "Anime4K_Restore_CNN_Soft_VL.glsl"
+local rcnn_vl = "Anime4K_Restore_CNN_VL.glsl"
+local rcnns_m = "Anime4K_Restore_CNN_Soft_M.glsl"
+local rcnn_m = "Anime4K_Restore_CNN_M.glsl"
+local ucnn_x2_vl = "Anime4K_Upscale_CNN_x2_VL.glsl"
+local ucnn_x2_m = "Anime4K_Upscale_CNN_x2_M.glsl"
+local adp_x2 = "Anime4K_AutoDownscalePre_x2.glsl"
+local adp_x4 = "Anime4K_AutoDownscalePre_x4.glsl"
+local udcnn_x2_vl = "Anime4K_Upscale_Denoise_CNN_x2_VL.glsl"
+
+-- preset modes
+local presets = {
+    A = {clamp, rcnn_vl, ucnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m},
+    B = {clamp, rcnns_vl, ucnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m},
+    C = {clamp, udcnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m},
+    ["A+A"] = {clamp, rcnn_vl, ucnn_x2_vl, rcnn_m, adp_x2, adp_x4, ucnn_x2_m},
+    ["B+B"] = {clamp, rcnns_vl, ucnn_x2_vl, adp_x2, adp_x4, rcnns_m, ucnn_x2_m},
+    ["C+A"] = {clamp, udcnn_x2_vl, adp_x2, adp_x4, rcnn_m, ucnn_x2_m}
+}
 
 function log_mode(line)
     return line:match("%s:::%s(.+)$")
 end
 
-function get_shader(mode)
-    local shader_header = "no-osd change-list glsl-shaders set \""
-    local clamp = o.shader_path .. "Anime4K_Clamp_Highlights.glsl"
-    local rcnns_vl = o.shader_path .. "Anime4K_Restore_CNN_Soft_VL.glsl"
-    local rcnn_vl = o.shader_path .. "Anime4K_Restore_CNN_VL.glsl"
-    local rcnns_m = o.shader_path .. "Anime4K_Restore_CNN_Soft_M.glsl"
-    local rcnn_m = o.shader_path .. "Anime4K_Restore_CNN_M.glsl"
-    local ucnn_x2_vl = o.shader_path .. "Anime4K_Upscale_CNN_x2_VL.glsl"
-    local ucnn_x2_m = o.shader_path .. "Anime4K_Upscale_CNN_x2_M.glsl"
-    local adp_x2 = o.shader_path .. "Anime4K_AutoDownscalePre_x2.glsl"
-    local adp_x4 = o.shader_path .. "Anime4K_AutoDownscalePre_x4.glsl"
-    local udcnn_x2_vl = o.shader_path .. "Anime4K_Upscale_Denoise_CNN_x2_VL.glsl"
-
-    local presets = {
-        A = shader_header .. table.concat({clamp, rcnn_vl, ucnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m}, ";") .. "\"",
-        B = shader_header .. table.concat({clamp, rcnns_vl, ucnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m}, ";") .. "\"",
-        C = shader_header .. table.concat({clamp, udcnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m}, ";") .. "\"",
-        ["A+A"] = shader_header .. table.concat({clamp, rcnn_vl, ucnn_x2_vl, rcnn_m, adp_x2, adp_x4, ucnn_x2_m}, ";") ..
-            "\"",
-        ["B+B"] = shader_header .. table.concat({clamp, rcnns_vl, ucnn_x2_vl, adp_x2, adp_x4, rcnns_m, ucnn_x2_m}, ";") ..
-            "\"",
-        ["C+A"] = shader_header .. table.concat({clamp, udcnn_x2_vl, adp_x2, adp_x4, rcnn_m, ucnn_x2_m}, ";") .. "\"",
-        disabled = "no-osd change-list glsl-shaders clr \"\""
-    }
-
-    return presets[mode] or presets["disabled"]
+function get_mode()
+    local shaders = mp.get_property_native("glsl-shaders")
+    if not shaders or #shaders < 1 then
+        return "disabled"
+    else
+        for mode, list in pairs(presets) do
+            if #shaders == #list then
+                local match = true
+                for i = 1, #list do
+                    if shaders[i]:gsub(".*(Anime4K.*)", "%1") ~= list[i] then
+                        match = false
+                        break
+                    end
+                end
+                if match then
+                    return mode
+                end
+            end
+        end
+        return nil
+    end
 end
 
--- Escapes magic characters in Lua patterns
-function escape(str)
-    return str:gsub("([%^%$%(%)%%%.%[%]%*%+%-%?])", "%%%1")
+function get_shader(mode)
+    local list = presets[mode]
+    if not list then
+        return "no-osd change-list glsl-shaders clr \"\""
+    end
+
+    local full_paths = {}
+    for _, shader in ipairs(list) do
+        table.insert(full_paths, o.shader_path .. shader)
+    end
+
+    return "no-osd change-list glsl-shaders set \"" .. table.concat(full_paths, ";") .. "\""
 end
 
 function hide()
@@ -78,7 +108,7 @@ function hide()
     mp.remove_key_binding("auto4k-ESC")
     mp.remove_key_binding("auto4k-DEL")
     mp.set_osd_ass(0, 0, "")
-    is_prompt_drawn = false
+    is_menu_drawn = false
 end
 
 function get_playlist()
@@ -201,7 +231,7 @@ function find_log_line(file)
     local result = nil
 
     for line in f:lines() do
-        if line:match(escape(file) .. "%s+:::") then
+        if line:find(file, 1, true) then
             result = line
             msg.info("Found existing file in log")
             break
@@ -212,14 +242,14 @@ function find_log_line(file)
     return result
 end
 
--- mode = "A" | "B" | "C" | "disabled" | "unset": passing unset with no_write = false deletes entry from log
+-- mode = "A" | "B" | "C" | "A+A" | "B+B" | "C+A" | "disabled" | "unset": passing unset with no_write = false deletes entry from log
 -- p = {
 -- [no_write] = boolean: don't write change to log
 -- [no_osd] = boolean: don't display message on change
 -- }                
 function enable_mode(mode, p)
     p = p or {}
-    local no_write = p.no_write or false
+    local no_write = not o.enable_logging or p.no_write or false
     local no_osd = p.no_osd or false
 
     -- set shaders
@@ -239,7 +269,7 @@ function enable_mode(mode, p)
     -- display message
     if not no_osd then
         if no_write then
-            mp.osd_message("Anime4K: " .. mode)
+            mp.osd_message("Anime4K Mode: " .. mode)
         else
             local msg
             if mode == "disabled" then
@@ -256,7 +286,7 @@ function enable_mode(mode, p)
     end
 end
 
-function draw_prompt(cursor, choices)
+function draw_menu(cursor, choices)
     local white = "{\\1c&HFFFFFF}"
     local grey = "{\\1c&H808080}"
     local yellow = "{\\1c&H66FFFF}"
@@ -266,10 +296,6 @@ function draw_prompt(cursor, choices)
     local normal_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size, o.font_size)
     local small_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size * 0.75, o.font_size * 0.75)
     local prompt = cur_mode == "unset" and "\\NUse Anime4K?" or "\\NChange Anime4k mode?"
-    local mode =
-        string.format("\\NEditing " .. lightblue .. "[%s]" .. white, is_playlist_scope and "Playlist" or "File")
-    local switch_mode = string.format(grey .. "\\N%s for %s scope", is_playlist_scope and "→" or "←",
-        is_playlist_scope and "file" or "playlist")
     local osd_text = normal_font .. prompt .. "\\N"
 
     for i, v in ipairs(choices) do
@@ -282,9 +308,16 @@ function draw_prompt(cursor, choices)
         end
     end
 
-    osd_text = osd_text .. "\\N" .. mode
-    if playlist then
-        osd_text = osd_text .. small_font .. switch_mode
+    if o.enable_logging then
+        local mode = string.format("\\NEditing " .. lightblue .. "[%s]", is_playlist_scope and "Playlist" or "File")
+        osd_text = osd_text .. "\\N" .. mode .. white
+        if playlist then
+            local switch_mode = string.format("\\N%s for %s scope", is_playlist_scope and "→" or "←",
+                is_playlist_scope and "file" or "playlist")
+            osd_text = osd_text .. small_font .. grey .. switch_mode
+        end
+    else
+        osd_text = osd_text .. small_font .. grey .. "\\N\\NLogging disabled"
     end
 
     -- Remove OSD messages if exist
@@ -298,25 +331,10 @@ function clear_log()
     end
 end
 
-function select(cursor, choices)
-    local choice = choices[cursor].text
-
-    local mode = ""
-    if choice == "Yes" then
-        mode = o.default_yes_mode
-    elseif choice == "No" or choice == "Disable" then
-        mode = "Disabled"
-    else
-        mode = choice
-    end
-
-    enable_mode(mode)
-end
-
 function change_scope(cursor, choices, pl_scope)
     if is_playlist_scope ~= pl_scope then
         is_playlist_scope = pl_scope
-        draw_prompt(cursor, choices)
+        draw_menu(cursor, choices)
     end
 end
 
@@ -329,7 +347,7 @@ function change_choice(cursor, choices, dir)
     else
         new_cursor = cursor + dir
     end
-    draw_prompt(new_cursor, choices)
+    draw_menu(new_cursor, choices)
     return new_cursor
 end
 
@@ -352,11 +370,15 @@ end
 function get_choices(mode)
     local base = {}
 
-    if mode == "unset" and o.prompt_yes_no then
+    if mode == "unset" and o.menu_yes_no then
         base = {"Yes", "No"}
     else
-        base = mode ~= "unset" and {"[Clear Log]", "Mode A", "Mode B", "Mode C"} or {"Mode A", "Mode B", "Mode C"}
-
+        if o.enable_logging and mode ~= "unset" then
+            base = {"[Clear Log]"}
+        end
+        for i, v in ipairs({"Mode A", "Mode B", "Mode C"}) do
+            table.insert(base, v)
+        end
         if o.include_secondary_modes then
             for i, v in ipairs({"Mode A+A", "Mode B+B", "Mode C+A"}) do
                 table.insert(base, v)
@@ -376,8 +398,8 @@ function get_choices(mode)
     return choices
 end
 
-function display_prompt()
-    if is_prompt_drawn then
+function display_menu()
+    if is_menu_drawn then
         hide()
         return
     end
@@ -392,8 +414,8 @@ function display_prompt()
         end
     end
 
-    draw_prompt(cursor, choices)
-    is_prompt_drawn = true
+    draw_menu(cursor, choices)
+    is_menu_drawn = true
 
     mp.add_forced_key_binding("UP", "auto4k-UP", function()
         cursor = change_choice(cursor, choices, -1)
@@ -405,7 +427,7 @@ function display_prompt()
     end, {
         repeatable = true
     })
-    if playlist then
+    if o.enable_logging and playlist then
         mp.add_forced_key_binding("LEFT", "auto4k-LEFT", function()
             change_scope(cursor, choices, true)
         end)
@@ -421,37 +443,46 @@ function display_prompt()
         hide()
     end)
     mp.add_forced_key_binding("DEL", "auto4k-DEL", function()
-        clear_log()
+        if o.enable_logging then
+            clear_log()
+        end
         hide()
     end)
 end
 
 function init()
-    cur_file = mp.get_property("path")
+    if o.enable_logging then
+        cur_file = mp.get_property("path")
 
-    enable_mode("unset", {
-        no_write = true,
-        no_osd = true
-    })
-
-    local log_line = find_log_line(cur_file)
-
-    if log_line then
-        is_playlist_scope = is_whole_playlist(log_line)
-        enable_mode(log_mode(log_line), {
+        enable_mode("unset", {
             no_write = true,
             no_osd = true
         })
-        if cur_mode ~= "disabled" then
-            msg.info("Enabling Anime4k in " .. cur_mode .. " mode for this file")
+
+        local log_line = find_log_line(cur_file)
+
+        if log_line then
+            is_playlist_scope = is_whole_playlist(log_line)
+            enable_mode(log_mode(log_line), {
+                no_write = true,
+                no_osd = true
+            })
+            if cur_mode ~= "disabled" then
+                msg.info("Enabling Anime4k in " .. cur_mode .. " mode for this file")
+            end
+        elseif o.auto_run then
+            msg.info("No log data found. Running prompt")
+            mp.add_timeout(1, display_menu)
         end
-    elseif o.auto_run then
-        msg.info("No log data found. Running prompt")
-        mp.add_timeout(1, display_prompt)
+    else
+        cur_mode = get_mode()
+        if o.auto_run then
+            mp.add_timeout(1, display_menu)
+        end
     end
 end
 
--- display prompt after playback-restart event, since the file loaded osd message fires after it
+-- display menu after playback-restart event, since the file loaded osd message fires after it
 -- store file loaded in a state so seeks don't trigger the callback
 mp.register_event("playback-restart", function()
     if not is_file_loaded then
@@ -470,7 +501,7 @@ mp.observe_property("playlist", "native", function()
         is_playlist_scope = o.default_playlist
     end
 end)
-mp.add_key_binding(nil, "display-auto4k", display_prompt)
+mp.add_key_binding(nil, "display-auto4k", display_menu)
 mp.add_key_binding(nil, "auto4k-A", function()
     enable_mode("A")
 end)
