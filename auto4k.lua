@@ -36,7 +36,7 @@ function log_mode(line)
     return line:match("%s:::%s(.+)$")
 end
 
-function get_shader_cmd(mode)
+function get_shader(mode)
     local shader_header = "no-osd change-list glsl-shaders set \""
     local clamp = o.shader_path .. "Anime4K_Clamp_Highlights.glsl"
     local rcnns_vl = o.shader_path .. "Anime4K_Restore_CNN_Soft_VL.glsl"
@@ -224,7 +224,7 @@ function enable_mode(mode, p)
 
     -- set shaders
     if mode ~= cur_mode then
-        mp.command(get_shader_cmd(mode))
+        mp.command(get_shader(mode))
         cur_mode = mode
     end
 
@@ -276,7 +276,7 @@ function draw_prompt(cursor, choices)
         local selected = (v.mode ~= "unset" and cur_mode == v.mode)
         local current_color = v.mode == "disabled" and yellow or v.mode == "unset" and red or green
         if (cursor == i) then
-            osd_text = osd_text .. "\\N" .. yellow .. "> " .. (selected and current_color or "") .. v.text .. white
+            osd_text = osd_text .. "\\N" .. (selected and current_color or yellow) .. "> " .. v.text .. white
         else
             osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. v.text .. (selected and white or "")
         end

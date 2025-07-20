@@ -45,7 +45,7 @@ auto_run=yes
 prompt_yes_no=yes
 # the mode that will be activated if you choose yes. A, B, C, A+A, B+B, or C+A
 default_yes_mode=A
-# whether the choices will be in playlist scope by default or not 
+# whether the choices will edit the whole playlist by default or not 
 default_playlist=yes
 # include A+A, B+B, C+A modes in the choices
 include_secondary_modes=yes
