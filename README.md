@@ -3,9 +3,7 @@
 Script to remember Anime4k (https://github.com/bloc97/Anime4K) status by generating and reading a log file in mpv config's folder.
 
 * Can apply and remember Anime4k mode to a single file or a whole playlist.
-* Once an unrecognized file loads, a prompt will ask whether to activate Anime4k for the file/playlist.
-* Choosing yes will activate the default Anime4k mode (default: A) and save the choice for the file/playlist.
-* Choosing no will disable Anime4k and save the choice for the file/playlist.
+* Once an unrecognized file loads, a prompt will ask if you want to use Anime4k for the file/playlist.
 * Includes a custom menu to check the active mode and change it.
 
 ## Install
