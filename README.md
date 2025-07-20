@@ -41,17 +41,19 @@ Comes with configurable options:
 log_path=~~home/auto4k.log
 # anime4k shaders path. if installed correctly in MPV/shaders/, don't touch anything
 shader_path=~~/shaders/
-# displays the prompt on an unrecognized file or folder
+# auto displays the prompt on an unrecognized file
 auto_run=yes
-# whether to display a simple yes/no prompt on unrecognized file/folder, or a more detailed prompt with all modes
+# draw a simple yes/no prompt on unrecognized file, or all modes
 prompt_yes_no=yes
-# the default mode that will be activated if you choose yes. A, B, or C
+# the mode that will be activated if you choose yes. A, B, C, A+A, B+B, or C+A
 default_yes_mode=A
 # whether the choices will be in playlist scope by default or not 
 default_playlist=yes
-# include A+A, B+B, C+A modes
+# include A+A, B+B, C+A modes in the choices
 include_secondary_modes=yes
+# font size of the prompt
 font_size=100
+# cull oldest entries of the log if it goes beyond this number of lines
 max_log_lines=1000
 ```
 
