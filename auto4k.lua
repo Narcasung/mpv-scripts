@@ -30,26 +30,22 @@ local is_playlist_scope = o.default_playlist
 local playlist = nil
 local is_prompt_drawn = false
 
-function shader_path(shader)
-    return o.shader_path .. shader
-end
-
 function log_mode(line)
     return line:match("%s:::%s(.+)$")
 end
 
 function get_shader_cmd(mode)
     local shader_header = "no-osd change-list glsl-shaders set \""
-    local clamp = shader_path("Anime4K_Clamp_Highlights.glsl")
-    local rcnns_vl = shader_path("Anime4K_Restore_CNN_Soft_VL.glsl")
-    local rcnn_vl = shader_path("Anime4K_Restore_CNN_VL.glsl")
-    local rcnns_m = shader_path("Anime4K_Restore_CNN_Soft_M.glsl")
-    local rcnn_m = shader_path("Anime4K_Restore_CNN_M.glsl")
-    local ucnn_x2_vl = shader_path("Anime4K_Upscale_CNN_x2_VL.glsl")
-    local ucnn_x2_m = shader_path("Anime4K_Upscale_CNN_x2_M.glsl")
-    local adp_x2 = shader_path("Anime4K_AutoDownscalePre_x2.glsl")
-    local adp_x4 = shader_path("Anime4K_AutoDownscalePre_x4.glsl")
-    local udcnn_x2_vl = shader_path("Anime4K_Upscale_Denoise_CNN_x2_VL.glsl")
+    local clamp = o.shader_path .. "Anime4K_Clamp_Highlights.glsl"
+    local rcnns_vl = o.shader_path .. "Anime4K_Restore_CNN_Soft_VL.glsl"
+    local rcnn_vl = o.shader_path .. "Anime4K_Restore_CNN_VL.glsl"
+    local rcnns_m = o.shader_path .. "Anime4K_Restore_CNN_Soft_M.glsl"
+    local rcnn_m = o.shader_path .. "Anime4K_Restore_CNN_M.glsl"
+    local ucnn_x2_vl = o.shader_path .. "Anime4K_Upscale_CNN_x2_VL.glsl"
+    local ucnn_x2_m = o.shader_path .. "Anime4K_Upscale_CNN_x2_M.glsl"
+    local adp_x2 = o.shader_path .. "Anime4K_AutoDownscalePre_x2.glsl"
+    local adp_x4 = o.shader_path .. "Anime4K_AutoDownscalePre_x4.glsl"
+    local udcnn_x2_vl = o.shader_path .. "Anime4K_Upscale_Denoise_CNN_x2_VL.glsl"
 
     local presets = {
         A = shader_header .. table.concat({clamp, rcnn_vl, ucnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m}, ";") .. "\"",
