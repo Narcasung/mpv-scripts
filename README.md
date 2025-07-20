@@ -6,7 +6,7 @@ Script to remember Anime4k (https://github.com/bloc97/Anime4K) status by generat
 * Once an unrecognized file loads, a prompt will ask whether to activate Anime4k for the file/playlist.
 * Choosing yes will activate the default Anime4k mode (default: A) and save the choice for the file/playlist.
 * Choosing no will disable Anime4k and save the choice for the file/playlist.
-* If you want to change your choice, use a keybind to bring up the prompt again.
+* Includes a custom menu to check the active mode and change it.
 
 ## Install
 
@@ -20,11 +20,14 @@ For the script to work correctly, you need to override the Anime4k input command
 Ctrl+1 script-binding auto4k-A
 Ctrl+2 script-binding auto4k-B
 Ctrl+3 script-binding auto4k-C
+Ctrl+4 script-binding auto4k-AA
+Ctrl+5 script-binding auto4k-BB
+Ctrl+6 script-binding auto4k-CA
 Ctrl+7 script-binding auto4k-clear
 ```
 and
 ```
-[a free keybind] script-binding display-auto4k
+[your keybind] script-binding display-auto4k
 ```
 
 to display the prompt manually.
@@ -46,6 +49,8 @@ prompt_yes_no=yes
 default_yes_mode=A
 # whether the choices will be in playlist scope by default or not 
 default_playlist=yes
+# include A+A, B+B, C+A modes
+include_secondary_modes=yes
 font_size=100
 max_log_lines=1000
 ```

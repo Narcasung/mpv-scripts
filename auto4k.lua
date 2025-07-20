@@ -11,6 +11,8 @@ local o = {
     default_yes_mode = "A",
     -- whether the choices will be in playlist scope by default or not 
     default_playlist = true,
+    -- include A+A, B+B, C+A modes
+    include_secondary_modes = true,
     font_size = 100,
     max_log_lines = 1000
 }
@@ -28,37 +30,36 @@ local is_playlist_scope = o.default_playlist
 local playlist = nil
 local is_prompt_drawn = false
 
-function prepend_shader_path(shader)
+function shader_path(shader)
     return o.shader_path .. shader
 end
 
 function log_mode(line)
-    return line:match("%s:::%s([%a%s]+)$")
+    return line:match("%s:::%s(.+)$")
 end
 
 function get_shader_cmd(mode)
     local shader_header = "no-osd change-list glsl-shaders set \""
+    local clamp = shader_path("Anime4K_Clamp_Highlights.glsl")
+    local rcnns_vl = shader_path("Anime4K_Restore_CNN_Soft_VL.glsl")
+    local rcnn_vl = shader_path("Anime4K_Restore_CNN_VL.glsl")
+    local rcnns_m = shader_path("Anime4K_Restore_CNN_Soft_M.glsl")
+    local rcnn_m = shader_path("Anime4K_Restore_CNN_M.glsl")
+    local ucnn_x2_vl = shader_path("Anime4K_Upscale_CNN_x2_VL.glsl")
+    local ucnn_x2_m = shader_path("Anime4K_Upscale_CNN_x2_M.glsl")
+    local adp_x2 = shader_path("Anime4K_AutoDownscalePre_x2.glsl")
+    local adp_x4 = shader_path("Anime4K_AutoDownscalePre_x4.glsl")
+    local udcnn_x2_vl = shader_path("Anime4K_Upscale_Denoise_CNN_x2_VL.glsl")
 
     local presets = {
-        A = shader_header ..
-            table.concat(
-                {prepend_shader_path("Anime4K_Clamp_Highlights.glsl"),
-                 prepend_shader_path("Anime4K_Restore_CNN_VL.glsl"),
-                 prepend_shader_path("Anime4K_Upscale_CNN_x2_VL.glsl"),
-                 prepend_shader_path("Anime4K_AutoDownscalePre_x2.glsl"),
-                 prepend_shader_path("Anime4K_AutoDownscalePre_x4.glsl"),
-                 prepend_shader_path("Anime4K_Upscale_CNN_x2_M.glsl")}, ";") .. "\"",
-        B = shader_header .. table.concat({prepend_shader_path("Anime4K_Clamp_Highlights.glsl"),
-                                           prepend_shader_path("Anime4K_Restore_CNN_Soft_VL.glsl"),
-                                           prepend_shader_path("Anime4K_Upscale_CNN_x2_VL.glsl"),
-                                           prepend_shader_path("Anime4K_AutoDownscalePre_x2.glsl"),
-                                           prepend_shader_path("Anime4K_AutoDownscalePre_x4.glsl"),
-                                           prepend_shader_path("Anime4K_Upscale_CNN_x2_M.glsl")}, ";") .. "\"",
-        C = shader_header .. table.concat({prepend_shader_path("Anime4K_Clamp_Highlights.glsl"),
-                                           prepend_shader_path("Anime4K_Upscale_Denoise_CNN_x2_VL.glsl"),
-                                           prepend_shader_path("Anime4K_AutoDownscalePre_x2.glsl"),
-                                           prepend_shader_path("Anime4K_AutoDownscalePre_x4.glsl"),
-                                           prepend_shader_path("Anime4K_Upscale_CNN_x2_M.glsl")}, ";") .. "\"",
+        A = shader_header .. table.concat({clamp, rcnn_vl, ucnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m}, ";") .. "\"",
+        B = shader_header .. table.concat({clamp, rcnns_vl, ucnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m}, ";") .. "\"",
+        C = shader_header .. table.concat({clamp, udcnn_x2_vl, adp_x2, adp_x4, ucnn_x2_m}, ";") .. "\"",
+        ["A+A"] = shader_header .. table.concat({clamp, rcnn_vl, ucnn_x2_vl, rcnn_m, adp_x2, adp_x4, ucnn_x2_m}, ";") ..
+            "\"",
+        ["B+B"] = shader_header .. table.concat({clamp, rcnns_vl, ucnn_x2_vl, adp_x2, adp_x4, rcnns_m, ucnn_x2_m}, ";") ..
+            "\"",
+        ["C+A"] = shader_header .. table.concat({clamp, udcnn_x2_vl, adp_x2, adp_x4, rcnn_m, ucnn_x2_m}, ";") .. "\"",
         disabled = "no-osd change-list glsl-shaders clr \"\""
     }
 
@@ -337,9 +338,9 @@ end
 
 function match_mode(value)
     local v = value:lower()
-    local letter = value:match("^Mode ([ABC])$")
-    if letter then
-        return letter
+    local mode = value:match("^Mode (.+)$")
+    if mode then
+        return mode
     elseif v == "disable" or v == "no" then
         return "disabled"
     elseif v == "yes" then
@@ -352,12 +353,16 @@ function match_mode(value)
 end
 
 function get_choices(mode)
-    local base
-    if mode ~= "unset" then
-        base = {"[Clear Log]", "Mode A", "Mode B", "Mode C", "Disable"}
-    else
-        base = o.default_yes_mode and {"Yes", "No"} or {"Mode A", "Mode B", "Mode C", "Disable"}
+    local base = mode ~= "unset" and {"[Clear Log]", "Mode A", "Mode B", "Mode C"} or {"Mode A", "Mode B", "Mode C"}
+
+    if o.include_secondary_modes then
+        for i, v in ipairs({"Mode A+A", "Mode B+B", "Mode C+A"}) do
+            table.insert(base, v)
+        end
     end
+
+    table.insert(base, "Disabled")
+
     local choices = {}
     for i, v in ipairs(base) do
         table.insert(choices, {
@@ -462,6 +467,15 @@ mp.add_key_binding(nil, "auto4k-B", function()
 end)
 mp.add_key_binding(nil, "auto4k-C", function()
     enable_mode("C")
+end)
+mp.add_key_binding(nil, "auto4k-AA", function()
+    enable_mode("A+A")
+end)
+mp.add_key_binding(nil, "auto4k-BB", function()
+    enable_mode("B+B")
+end)
+mp.add_key_binding(nil, "auto4k-CA", function()
+    enable_mode("C+A")
 end)
 mp.add_key_binding(nil, "auto4k-clear", function()
     enable_mode("disabled")
