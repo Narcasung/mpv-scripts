@@ -188,7 +188,7 @@ function write_log(mode, p)
     f:close()
 end
 
-function is_whole_playlist(log_line)
+function is_playlist_in_log(mode, log_line)
     if playlist then
         for i, v in ipairs(playlist) do
             if v ~= cur_file then
@@ -199,7 +199,8 @@ function is_whole_playlist(log_line)
 
                 local match_found = false
                 for line in f:lines() do
-                    if line:find(v, 1, true) and log_mode(log_line) == log_mode(line) then
+                    if line:find(v, 1, true) and
+                        (mode == "some" or (mode == "every" and log_mode(log_line) == log_mode(line))) then
                         match_found = true
                         break
                     end
@@ -207,13 +208,22 @@ function is_whole_playlist(log_line)
 
                 f:close()
 
-                if not match_found then
+                if mode == "some" and match_found then
+                    msg.info("Found other playlist files in log")
+                    return true
+                elseif mode == "every" and not match_found then
+                    msg.info("Didn't find whole playlist in log")
                     return false
                 end
             end
         end
-        msg.info("Found whole playlist in log")
-        return true
+        if mode == "every" then
+            msg.info("Found whole playlist in log")
+            return true
+        elseif mode == "some" then
+            msg.info("Didn't find other playlist files in log")
+            return false
+        end
     else
         return false
     end
@@ -451,9 +461,9 @@ function display_menu()
 end
 
 function init()
-    if o.enable_logging then
-        cur_file = mp.get_property("path")
+    cur_file = mp.get_property("path")
 
+    if o.enable_logging then
         enable_mode("unset", {
             no_write = true,
             no_osd = true
@@ -462,16 +472,24 @@ function init()
         local log_line = find_log_line(cur_file)
 
         if log_line then
-            is_playlist_scope = is_whole_playlist(log_line)
+            if is_playlist_in_log("every", log_line) then
+                msg.info("Switching to playlist mode")
+                is_playlist_scope = true
+            else
+                msg.info("Switching to file mode")
+                is_playlist_scope = false
+            end
             enable_mode(log_mode(log_line), {
                 no_write = true,
                 no_osd = true
             })
-            if cur_mode ~= "disabled" then
-                msg.info("Enabling Anime4K in " .. cur_mode .. " mode for this file")
-            end
+            msg.info("Putting Anime4K in " .. cur_mode .. " mode")
         elseif o.auto_run then
             msg.info("No log data found. Running prompt")
+            if is_playlist_in_log("some") then
+                msg.info("Switching to file mode")
+                is_playlist_scope = false
+            end
             mp.add_timeout(1, display_menu)
         end
     else
