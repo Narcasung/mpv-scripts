@@ -258,8 +258,9 @@ function update_dyn_menu_items()
     if o.hide_same_dir then
         lists = hide_same_dir(lists)
     end
-    if #lists > o.list_show_amount then
-        length = o.list_show_amount
+    local length
+    if #lists > o.max_lines then
+        length = o.max_lines
     else
         length = #lists
     end
@@ -421,8 +422,9 @@ function open_menu(lists)
             value = 'ignore'
         }}
     }
-    if #lists > o.list_show_amount then
-        length = o.list_show_amount
+    local length
+    if #lists > o.max_lines then
+        length = o.max_lines
     else
         length = #lists
     end
