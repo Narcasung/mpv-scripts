@@ -1,9 +1,17 @@
 local mp = require 'mp'
+
+--shared default color for the "N item(s) above/remaining" wrapper text.
+--exposed so scripts that need to resize/rescale wrapper_style (different
+--fonts/resolutions) can still reuse this exact color instead of picking
+--their own.
+local WRAPPER_COLOR = [[&00ccff&]]
+
 local scroll_list = {
     global_style = [[]],
     header_style = [[{\q2\fs35\c&00ccff&}]],
     list_style = [[{\q2\fs25\c&Hffffff&}]],
-    wrapper_style = [[{\c&00ccff&\fs16}]],
+    wrapper_style = [[{\c]] .. WRAPPER_COLOR .. [[\fs16}]],
+    wrapper_color = WRAPPER_COLOR,
     cursor_style = [[{\c&00ccff&}]],
     selected_style = [[{\c&Hfce788&}]],
 
@@ -20,6 +28,13 @@ local scroll_list = {
     wrap = false,
     empty_text = "no entries"
 }
+
+--caps large above/remaining counts so the wrapper text doesn't grow unbounded
+--on huge lists
+function scroll_list.format_count(n)
+    if n > 99 then return "99+" end
+    return tostring(n)
+end
 
 --formats strings for ass handling
 --this function is based on a similar function from https://github.com/mpv-player/mpv/blob/master/player/lua/console.lua#L110
@@ -148,13 +163,13 @@ function scroll_list:update_ass()
     self.window_finish = finish
 
     --adding a header to show there are items above in the list
-    if start > 1 then self:append(self.wrapper_style..(start-1)..' item(s) above\\N\\N') end
+    if start > 1 then self:append(self.wrapper_style..scroll_list.format_count(start-1)..' item(s) above\\N\\N') end
 
     for i=start, finish do
         self:format_line(i, self.list[i])
     end
 
-    if overflow then self:append('\\N'..self.wrapper_style..#self.list-finish..' item(s) remaining') end
+    if overflow then self:append('\\N'..self.wrapper_style..scroll_list.format_count(#self.list-finish)..' item(s) remaining') end
     mp.set_osd_ass(0, 0, self.ass.data)
 end
 

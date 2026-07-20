@@ -35,7 +35,7 @@ local o = {
     -- Highlight color in BGR hexadecimal
     hi_color = "H46CFFF",
     -- Number of lines to display in the list, adjust to your mpv height
-    max_lines = 10,
+    num_entries = 10,
     -- Cull old entries from log if it gets too big
     max_log_lines = 10000
 }
@@ -247,8 +247,8 @@ function update_dyn_menu_items()
         lists = hide_same_dir(lists)
     end
     local length
-    if #lists > o.max_lines then
-        length = o.max_lines
+    if #lists > o.num_entries then
+        length = o.num_entries
     else
         length = #lists
     end
@@ -299,7 +299,7 @@ end
 --list ass style
 list.indent = [[]]
 list.wrap = false
-list.num_entries = o.max_lines
+list.num_entries = o.num_entries
 -- trailing \N reproduces the blank line the original had between the
 -- header and the first entry (format_header only adds one newline itself)
 list.header = [[[Recent]\N]]
@@ -308,7 +308,9 @@ list.header_style = string.format([[{\fscx%f}{\fscy%f}{\bord%f}{\1c&H808080}]],
 -- explicit color reset per row: without it, grey (from the header) or the
 -- highlight color (from a cursor row) leaks into every row that follows
 list.list_style = string.format([[{\1c&HFFFFFF}{\fscx%f}{\fscy%f}{\bord%f}]], o.font_scale, o.font_scale, o.border_size)
-list.wrapper_style = string.format([[{\1c&H808080}{\fscx%f}{\fscy%f}{\bord%f}]],
+-- reuses scroll-list.lua's shared wrapper_color (same yellow track-list.lua
+-- uses for its "N item(s) above/remaining" text) instead of picking its own
+list.wrapper_style = string.format([[{\c%s}{\fscx%f}{\fscy%f}{\bord%f}]], list.wrapper_color,
     o.font_scale * 3 / 4, o.font_scale * 3 / 4, o.border_size * 3 / 4)
 local hi_style = string.format([[{\1c&H%s}]], o.hi_color)
 list.cursor_style = hi_style
@@ -353,8 +355,8 @@ function open_menu(lists)
         }}
     }
     local length
-    if #lists > o.max_lines then
-        length = o.max_lines
+    if #lists > o.num_entries then
+        length = o.num_entries
     else
         length = #lists
     end

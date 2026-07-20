@@ -20,7 +20,9 @@ local o = {
     -- font size of the menu
     font_size = 100,
     -- cull oldest entries of the log if it goes beyond this number of lines
-    max_log_lines = 1000
+    max_log_lines = 1000,
+    -- amount of entries to show before slicing
+    num_entries = 20
 }
 (require "mp.options").read_options(o)
 local msg = require("mp.msg")
@@ -324,7 +326,7 @@ local small_font_style = string.format([[{\fscx%f}{\fscy%f}{\bord0.375}]], o.fon
 --support was added for
 list.indent = [[]]
 list.wrap = true
-list.num_entries = 20
+list.num_entries = o.num_entries
 list.list_style = white .. normal_font_style
 list.header_style = normal_font_style
 list.cursor_style = yellow
@@ -483,7 +485,7 @@ local function open_menu()
     list.selected = cursor
     -- trailing \N reproduces the blank line the original had between the
     -- prompt and the first choice (format_header only adds one newline itself)
-    list.header = (cur_mode == "unset" and [[\NUse Anime4K?]] or [[\NChange Anime4K mode?]]) .. [[\N]]
+    list.header = (cur_mode == "unset" and [[Use Anime4K?]] or [[Change Anime4K mode?]]) .. [[\N]]
 
     list:update()
     list:open()
