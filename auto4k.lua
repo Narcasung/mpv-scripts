@@ -62,6 +62,13 @@ function log_mode(line)
     return line:match("%s:::%s(.+)$")
 end
 
+-- extracts the file path portion of a log line (everything before " ::: ")
+-- used for exact-match lookups so one path can't false-positive match as a
+-- substring of another (e.g. "S01E1.mkv" vs "S01E1.mkv.bak")
+function log_path(line)
+    return line:match("^(.-)%s:::%s")
+end
+
 function get_mode()
     local shaders = mp.get_property_native("glsl-shaders")
     if not shaders or #shaders < 1 then
@@ -130,7 +137,7 @@ function match_in_playlist(line)
     end
 
     for i, v in ipairs(playlist) do
-        if line:find(v, 1, true) then
+        if log_path(line) == v then
             return true
         end
     end
@@ -165,7 +172,7 @@ function write_log(mode, p)
 
     -- remove duplicates
     local content = read_log(function(line)
-        if (playlist_scope and match_in_playlist(line)) or line:find(cur_file, 1, true) then
+        if (playlist_scope and match_in_playlist(line)) or log_path(line) == cur_file then
             return nil
         else
             return line
@@ -202,7 +209,7 @@ function is_playlist_in_log(mode, log_line)
 
                 local match_found = false
                 for line in f:lines() do
-                    if line:find(v, 1, true) and
+                    if log_path(line) == v and
                         (mode == "some" or (mode == "every" and log_mode(log_line) == log_mode(line))) then
                         match_found = true
                         break
@@ -244,7 +251,7 @@ function find_log_line(file)
     local result = nil
 
     for line in f:lines() do
-        if line:find(file, 1, true) then
+        if log_path(line) == file then
             result = line
             msg.info("Found existing file in log")
             break
