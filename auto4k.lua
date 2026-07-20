@@ -310,11 +310,11 @@ function draw_menu(cursor, choices)
     local white = "{\\1c&HFFFFFF}"
     local grey = "{\\1c&H808080}"
     local yellow = "{\\1c&H66FFFF}"
-    local red = "{\\1c&0000FF}"
-    local green = "{\\1c&00FF00}"
+    local red = "{\\1c&H0000FF}"
+    local green = "{\\1c&H00FF00}"
     local lightblue = "{\\1c&HFFFF00}"
-    local normal_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size, o.font_size)
-    local small_font = string.format("{\\fscx%f}{\\fscy%f}", o.font_size * 0.75, o.font_size * 0.75)
+    local normal_font = string.format("{\\fscx%f}{\\fscy%f}{\\bord0.5}", o.font_size, o.font_size)
+    local small_font = string.format("{\\fscx%f}{\\fscy%f}{\\bord0.375}", o.font_size * 0.75, o.font_size * 0.75)
     local prompt = cur_mode == "unset" and "\\NUse Anime4K?" or "\\NChange Anime4K mode?"
     local osd_text = normal_font .. prompt .. "\\N"
 
@@ -323,9 +323,9 @@ function draw_menu(cursor, choices)
         local current_color = v.mode == "disabled" and yellow or v.mode == "unset" and red or green
         local marker = v.mode == "unset" and "" or (selected and "● " or "○ ")
         if (cursor == i) then
-            osd_text = osd_text .. "\\N" .. (selected and current_color or yellow) .. "➤\\h" .. marker .. v.text .. white
+            osd_text = osd_text .. "\\N" .. (selected and current_color or yellow) .. "➤\\h" .. normal_font .. marker .. v.text .. white
         else
-            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. marker .. v.text .. (selected and white or "")
+            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. normal_font .. marker .. v.text .. (selected and white or "")
         end
     end
 

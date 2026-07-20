@@ -92,7 +92,7 @@ function scroll_list:update_ass()
 
     if #self.list < 1 then
         self:append(self.empty_text)
-        self.ass:update()
+        mp.set_osd_ass(0, 0, self.ass.data)
         return
     end
 
@@ -127,7 +127,7 @@ function scroll_list:update_ass()
     end
 
     if overflow then self:append('\\N'..self.wrapper_style..#self.list-finish..' item(s) remaining') end
-    self.ass:update()
+    mp.set_osd_ass(0, 0, self.ass.data)
 end
 
 --moves the selector down the list
@@ -203,14 +203,14 @@ end
 --opens the list and sets the hidden flag
 function scroll_list:open_list()
     self.hidden = false
-    if not self.flag_update then self.ass:update()
+    if not self.flag_update then mp.set_osd_ass(0, 0, self.ass.data)
     else self.flag_update = false ; self:update_ass() end
 end
 
 --closes the list and sets the hidden flag
 function scroll_list:close_list()
     self.hidden = true
-    self.ass:remove()
+    mp.set_osd_ass(0, 0, "")
 end
 
 --modifiable function that opens the list
@@ -269,7 +269,11 @@ local metatable = {
 function scroll_list:new()
     local vars
     vars = {
-        ass = mp.create_osd_overlay('ass-events'),
+        --plain scratch buffer, not a real overlay: rendering goes through
+        --mp.set_osd_ass (see update_ass/open_list/close_list) so this list
+        --shares the same underlying overlay as recent.lua/auto4k.lua instead
+        --of wasting a second overlay id slot that's never pushed to screen
+        ass = {data = "", id = 0},
         hidden = true,
         flag_update = true,
 

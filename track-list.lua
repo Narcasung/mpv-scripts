@@ -28,9 +28,9 @@ local o = {
     --these styles will be used for the whole list. so you need to reset them for every line
     --read http://docs.aegisub.org/3.2/ASS_Tags/ for reference of tags
     global_style = [[]],
-    header_style = [[{\q2\fs18\c&H808080&}]],
-    list_style = [[{\q2\fs24\c&Hffffff&}]],
-    wrapper_style = [[{\c&00ccff&\fs16}]],
+    header_style = [[{\q2\fscx75\fscy75\bord0.375\c&H808080&}]],
+    list_style = [[{\q2\fscx100\fscy100\bord0.5\c&Hffffff&}]],
+    wrapper_style = [[{\c&00ccff&\fscx67\fscy67\bord0.335}]],
     cursor_style = [[{\c&00ccff&}]],
     selected_style = [[{\c&H66FFFF&}]],
     active_style = [[{\c&H33ff66&}]],
