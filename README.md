@@ -85,10 +85,17 @@ Fork of https://github.com/hacel/recent.
 
 Fork of https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua.
 
-Requires `script-modules/scroll-list.lua` (https://github.com/CogentRedTester/mpv-scroll-list) as a dependency.
+Requires `script-modules/scroll-list.lua` as a dependency.
 
 * Resolves the scroll-list.lua dependency relative to the script's own file location instead of through mpv's `~~` config-dir expansion.
-* Dropped the `MBTN_MID` alt-binding from `key_reload_track`.
+
+# SelectionMenu.js
+
+Modified version of [blackbox](https://github.com/VideoPlayerCode/mpv-tools)'s menu draw engine to not overlap my other script menus.
+
+# modernx.lua
+
+Modified version of [modernx](https://github.com/cyl0/ModernX/) to not overlap script menus with mpv's logo.
 
 # (WIP) help.lua
 

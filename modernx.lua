@@ -2432,6 +2432,12 @@ mp.observe_property('idle-active', 'bool',
         request_tick()
     end
 )
+-- tick() is event-driven, not per-frame, so without this the idle screen
+-- (drawn once on entering idle) wouldn't redraw/hide when a scroll-list.lua
+-- menu opens or closes afterwards
+mp.observe_property('user-data/mpv-scripts/list-open', 'native', function(name, val)
+    request_tick()
+end)
 mp.observe_property('pause', 'bool', pause_state)
 mp.observe_property('demuxer-cache-state', 'native', cache_state)
 mp.observe_property('vo-configured', 'bool', function(name, val)
