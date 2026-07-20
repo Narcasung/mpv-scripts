@@ -46,6 +46,17 @@ local o = {
 local utils = require("mp.utils")
 o.log_path = utils.join_path(mp.find_config_file("."), o.log_path)
 
+--➤ (Dingbats) isn't in the OSD font (Poppins), so without an explicit \fn it
+--falls back to whatever font Windows picks for the glyph. Forcing Segoe UI
+--Symbol keeps that consistent, and scaling it down a notch keeps its visual
+--weight in line with the surrounding text. Same fix as track-list.lua/auto4k.lua.
+local SYMBOL_FONT = "Segoe UI Symbol"
+local function marker(glyph)
+    local small = o.font_scale * 0.75
+    return string.format([[{\fn%s\fscx%f\fscy%f}%s{\fn\fscx%f\fscy%f}]],
+        SYMBOL_FONT, small, small, glyph, o.font_scale, o.font_scale)
+end
+
 local cur_title, cur_path
 local list_drawn = false
 
@@ -339,7 +350,7 @@ function draw_list(list, start, choice)
         end
         p = p:gsub("\\", "\\\239\187\191"):gsub("{", "\\{"):gsub("^ ", "\\h")
         if i == choice + 1 then
-            msg = msg .. hi_start .. "➤\\h" .. date .. " " .. strip_title(p) .. "\\N" .. hi_end
+            msg = msg .. hi_start .. marker("➤") .. "\\h" .. date .. " " .. strip_title(p) .. "\\N" .. hi_end
         else
             msg = msg .. date .. " " .. strip_title(p) .. "\\N"
         end
