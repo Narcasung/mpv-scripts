@@ -154,7 +154,10 @@ end
 function write_log(mode, p)
     p = p or {}
     local delete = p.delete or false
-    local playlist_scope = p.playlist_scope or false
+    -- playlist can still be nil here if this runs before the "playlist"
+    -- property observer has fired once (e.g. right after file load), so
+    -- fall back to file scope rather than indexing a nil playlist below
+    local playlist_scope = (p.playlist_scope or false) and playlist ~= nil
 
     if not cur_file then
         return
