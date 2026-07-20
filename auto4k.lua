@@ -178,7 +178,7 @@ function write_log(mode, p)
             return line
         end
     end)
-    f = io.open(o.log_path, "w+")
+    local f = io.open(o.log_path, "w+")
     if content then
         local start = math.max(1, #content - (o.max_log_lines - 1))
         for i = start, #content do

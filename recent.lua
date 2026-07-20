@@ -291,7 +291,7 @@ function write_log(delete)
             return line
         end
     end)
-    f = io.open(o.log_path, "w+")
+    local f = io.open(o.log_path, "w+")
     if content then
         -- culls log if it gets too big
         local start = math.max(1, #content - (o.max_log_lines - 1))
