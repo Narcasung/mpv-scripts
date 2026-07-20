@@ -34,8 +34,6 @@ local o = {
     border_size = 0.7,
     -- Highlight color in BGR hexadecimal
     hi_color = "H46CFFF",
-    -- Draw ellipsis at start/end denoting ommited entries
-    ellipsis = false,
     -- Number of lines to display in the list, adjust to your mpv height
     max_lines = 10,
     -- Cull old entries from log if it gets too big
@@ -57,8 +55,13 @@ local function marker(glyph)
         SYMBOL_FONT, small, small, glyph, o.font_scale, o.font_scale)
 end
 
+--adding the source directory to the package path and loading the module
+--resolved relative to this script's own location so it works regardless of ~~ (config-dir)
+local script_dir = debug.getinfo(1, "S").source:match("^@(.*[/\\])")
+package.path = script_dir .. "../script-modules/?.lua;" .. package.path
+local list = require "scroll-list"
+
 local cur_title, cur_path
-local list_drawn = false
 
 -- variables for custom playlist detection
 local playlist_url = ""
@@ -178,32 +181,6 @@ function get_path()
     end
 end
 
-function unbind()
-    if o.mouse_controls then
-        mp.remove_key_binding("recent-WUP")
-        mp.remove_key_binding("recent-WDOWN")
-        mp.remove_key_binding("recent-MMID")
-        mp.remove_key_binding("recent-MRIGHT")
-    end
-    mp.remove_key_binding("recent-UP")
-    mp.remove_key_binding("recent-DOWN")
-    mp.remove_key_binding("recent-ENTER")
-    mp.remove_key_binding("recent-1")
-    mp.remove_key_binding("recent-2")
-    mp.remove_key_binding("recent-3")
-    mp.remove_key_binding("recent-4")
-    mp.remove_key_binding("recent-5")
-    mp.remove_key_binding("recent-6")
-    mp.remove_key_binding("recent-7")
-    mp.remove_key_binding("recent-8")
-    mp.remove_key_binding("recent-9")
-    mp.remove_key_binding("recent-0")
-    mp.remove_key_binding("recent-ESC")
-    mp.remove_key_binding("recent-DEL")
-    mp.set_osd_ass(0, 0, "")
-    list_drawn = false
-end
-
 function read_log(func)
     local f = io.open(o.log_path, "r")
     if not f then
@@ -319,108 +296,50 @@ function write_log(delete)
     end
 end
 
--- Display list on OSD and terminal
-function draw_list(list, start, choice)
-    local header = string.format("{\\fscx%f}{\\fscy%f}{\\bord%f}{\\1c&H808080}", o.font_scale * 3 / 4,
-        o.font_scale * 3 / 4, o.border_size * 3 / 4)
-    local msg = string.format("{\\fscx%f}{\\fscy%f}{\\bord%f}", o.font_scale, o.font_scale, o.border_size)
-    local hi_start = string.format("{\\1c&H%s}", o.hi_color)
-    local hi_end = "{\\1c&HFFFFFF}"
-    msg = header .. "[Recent]\\N" .. msg .. hi_end
+--list ass style
+list.indent = [[]]
+list.wrap = false
+list.num_entries = o.max_lines
+-- trailing \N reproduces the blank line the original had between the
+-- header and the first entry (format_header only adds one newline itself)
+list.header = [[[Recent]\N]]
+list.header_style = string.format([[{\fscx%f}{\fscy%f}{\bord%f}{\1c&H808080}]],
+    o.font_scale * 3 / 4, o.font_scale * 3 / 4, o.border_size * 3 / 4)
+-- explicit color reset per row: without it, grey (from the header) or the
+-- highlight color (from a cursor row) leaks into every row that follows
+list.list_style = string.format([[{\1c&HFFFFFF}{\fscx%f}{\fscy%f}{\bord%f}]], o.font_scale, o.font_scale, o.border_size)
+list.wrapper_style = string.format([[{\1c&H808080}{\fscx%f}{\fscy%f}{\bord%f}]],
+    o.font_scale * 3 / 4, o.font_scale * 3 / 4, o.border_size * 3 / 4)
+local hi_style = string.format([[{\1c&H%s}]], o.hi_color)
+list.cursor_style = hi_style
+list.selected_style = hi_style
+list.cursor = marker("➤") .. [[\h]]
 
-    if o.ellipsis then
-        if start ~= 0 then
-            msg = msg .. "..."
-        end
-        msg = msg .. "\\h\\N"
-    end
-    local size = #list
-    for i = 1, math.min(o.max_lines, size - start), 1 do
-        local key = i
-        local date = "(" .. list[size - start - i + 1].date .. ")" or ""
+-- builds the scroll-list items from a read_log_table() result (oldest first),
+-- newest first to match how the list has always been displayed
+local function build_list_items(entries)
+    local reversed = table_reverse(entries)
+    local items = {}
+    for i, entry in ipairs(reversed) do
         local p
         if o.show_paths then
-            if o.split_paths or is_protocol(list[size - start - i + 1].path) then
-                p = get_filename(list[size - start - i + 1])
+            if o.split_paths or is_protocol(entry.path) then
+                p = get_filename(entry)
             else
-                p = list[size - start - i + 1].path or ""
+                p = entry.path or ""
             end
         else
-            p = list[size - start - i + 1].title or list[size - start - i + 1].path or ""
+            p = entry.title or entry.path or ""
         end
         p = p:gsub("\\", "\\\239\187\191"):gsub("{", "\\{"):gsub("^ ", "\\h")
-        if i == choice + 1 then
-            msg = msg .. hi_start .. marker("➤") .. "\\h" .. date .. " " .. strip_title(p) .. "\\N" .. hi_end
-        else
-            msg = msg .. date .. " " .. strip_title(p) .. "\\N"
-        end
-        -- if not list_drawn then
-        --     disable terminal display
-        --     print(key..": "..p)
-        -- end
+        items[i] = {
+            path = entry.path,
+            title = entry.title,
+            date = entry.date,
+            ass = string.format("(%s) %s", entry.date, strip_title(p))
+        }
     end
-    if o.ellipsis and start + o.max_lines < size then
-        msg = msg .. "..."
-    end
-    -- Remove OSD messages if exist
-    mp.osd_message(" ", 0.1)
-    mp.set_osd_ass(0, 0, msg)
-end
-
--- Handle up/down keys
-function select(list, start, choice, inc)
-    choice = choice + inc
-    if choice < 0 then
-        choice = choice + 1
-        start = start + inc
-    elseif choice >= math.min(#list, o.max_lines) then
-        choice = choice - 1
-        start = start + inc
-    end
-    if start > math.max(#list - o.max_lines, 0) then
-        start = start - 1
-    elseif start < 0 then
-        start = start + 1
-    end
-    draw_list(list, start, choice)
-    return start, choice
-end
-
--- Delete selected entry from the log
-function delete(list, start, choice)
-    local playing_path = cur_path
-    local playing_title = cur_title
-    cur_path = list[#list - start - choice].path
-    cur_title = list[#list - start - choice].title
-    if not cur_path then
-        print("Failed to delete")
-        return
-    end
-    write_log(true)
-    print("Deleted \"" .. cur_path .. "\"")
-    cur_path = playing_path
-    cur_title = playing_title
-end
-
--- Load file and remove binds
-function load(list, start, choice)
-    unbind()
-    if start + choice >= #list then
-        return
-    end
-    if o.write_watch_later then
-        mp.command("write-watch-later-config")
-    end
-    mp.commandv("loadfile", list[#list - start - choice].path, "replace")
-end
-
--- play last played file
-function play_last()
-    local lists = read_log_table()
-    if not lists or not lists[1] then
-        return
-    end
-    mp.commandv("loadfile", lists[#lists].path, "replace")
+    return items
 end
 
 -- Open the recent submenu for uosc
@@ -451,100 +370,105 @@ function open_menu(lists)
     mp.commandv('script-message-to', 'uosc', 'open-menu', json)
 end
 
--- Display list and add keybinds
-function display_list()
-    if list_drawn then
-        unbind()
+-- play last played file
+function play_last()
+    local lists = read_log_table()
+    if not lists or not lists[1] then
         return
     end
-    local list = read_log_table()
-    if not list or not list[1] then
+    mp.commandv("loadfile", lists[#lists].path, "replace")
+end
+
+local function load_by_index(idx)
+    local item = list.list[idx]
+    list:close()
+    if not item then
+        return
+    end
+    if o.write_watch_later then
+        mp.command("write-watch-later-config")
+    end
+    mp.commandv("loadfile", item.path, "replace")
+end
+
+local function load_selected()
+    load_by_index(list.selected)
+end
+
+-- jumps to the nth currently visible row (1-indexed), matching the numeric keybinds
+local function load_visible_row(n)
+    load_by_index((list.window_start or 1) + (n - 1))
+end
+
+local function delete_selected()
+    local item = list.list[list.selected]
+    if not item then
+        return
+    end
+
+    local playing_path, playing_title = cur_path, cur_title
+    cur_path, cur_title = item.path, item.title
+    write_log(true)
+    print("Deleted \"" .. cur_path .. "\"")
+    cur_path, cur_title = playing_path, playing_title
+
+    local entries = read_log_table()
+    if not entries or not entries[1] then
+        list:close()
+        return
+    end
+    if o.hide_same_dir then
+        entries = hide_same_dir(entries)
+    end
+    list.list = build_list_items(entries)
+    if list.selected > #list.list then
+        list.selected = #list.list
+    end
+    list:update()
+end
+
+list.keybinds = {
+    {'UP', 'scroll_up', function() list:scroll_up() end, {repeatable = true}},
+    {'DOWN', 'scroll_down', function() list:scroll_down() end, {repeatable = true}},
+    {'ENTER', 'load_entry', function() load_selected() end, {}},
+    {'DEL', 'delete_entry', function() delete_selected() end, {repeatable = true}},
+    {'ESC', 'close_list', function() list:close() end, {}}
+}
+if o.mouse_controls then
+    table.insert(list.keybinds, {'WHEEL_UP', 'wheel_up', function() list:scroll_up() end, {}})
+    table.insert(list.keybinds, {'WHEEL_DOWN', 'wheel_down', function() list:scroll_down() end, {}})
+    table.insert(list.keybinds, {'MBTN_MID', 'mid_click', function() load_selected() end, {}})
+    table.insert(list.keybinds, {'MBTN_RIGHT', 'right_click', function() list:close() end, {}})
+end
+for i = 1, 9 do
+    table.insert(list.keybinds, {tostring(i), 'jump_' .. i, function() load_visible_row(i) end, {}})
+end
+table.insert(list.keybinds, {'0', 'jump_10', function() load_visible_row(10) end, {}})
+
+-- Display list and add keybinds
+function display_list()
+    if not list.hidden then
+        list:close()
+        return
+    end
+
+    local entries = read_log_table()
+    if not entries or not entries[1] then
         mp.osd_message("Log empty")
         return
     end
     if o.hide_same_dir then
-        list = hide_same_dir(list)
+        entries = hide_same_dir(entries)
     end
     if uosc_available then
-        open_menu(list)
+        open_menu(entries)
         return
     end
-    local choice = 0
-    local start = 0
-    draw_list(list, start, choice)
-    list_drawn = true
 
-    mp.add_forced_key_binding("UP", "recent-UP", function()
-        start, choice = select(list, start, choice, -1)
-    end, {
-        repeatable = true
-    })
-    mp.add_forced_key_binding("DOWN", "recent-DOWN", function()
-        start, choice = select(list, start, choice, 1)
-    end, {
-        repeatable = true
-    })
-    mp.add_forced_key_binding("ENTER", "recent-ENTER", function()
-        load(list, start, choice)
-    end)
-    mp.add_forced_key_binding("DEL", "recent-DEL", function()
-        delete(list, start, choice)
-        list = read_log_table()
-        if not list or not list[1] then
-            unbind()
-            return
-        end
-        start, choice = select(list, start, choice, 0)
-    end, {
-        repeatable = true
-    })
-    if o.mouse_controls then
-        mp.add_forced_key_binding("WHEEL_UP", "recent-WUP", function()
-            start, choice = select(list, start, choice, -1)
-        end)
-        mp.add_forced_key_binding("WHEEL_DOWN", "recent-WDOWN", function()
-            start, choice = select(list, start, choice, 1)
-        end)
-        mp.add_forced_key_binding("MBTN_MID", "recent-MMID", function()
-            load(list, start, choice)
-        end)
-        mp.add_forced_key_binding("MBTN_RIGHT", "recent-MRIGHT", function()
-            unbind()
-        end)
-    end
-    mp.add_forced_key_binding("1", "recent-1", function()
-        load(list, start, 0)
-    end)
-    mp.add_forced_key_binding("2", "recent-2", function()
-        load(list, start, 1)
-    end)
-    mp.add_forced_key_binding("3", "recent-3", function()
-        load(list, start, 2)
-    end)
-    mp.add_forced_key_binding("4", "recent-4", function()
-        load(list, start, 3)
-    end)
-    mp.add_forced_key_binding("5", "recent-5", function()
-        load(list, start, 4)
-    end)
-    mp.add_forced_key_binding("6", "recent-6", function()
-        load(list, start, 5)
-    end)
-    mp.add_forced_key_binding("7", "recent-7", function()
-        load(list, start, 6)
-    end)
-    mp.add_forced_key_binding("8", "recent-8", function()
-        load(list, start, 7)
-    end)
-    mp.add_forced_key_binding("9", "recent-9", function()
-        load(list, start, 8)
-    end)
-    mp.add_forced_key_binding("0", "recent-0", function()
-        load(list, start, 9)
-    end)
-    mp.add_forced_key_binding("ESC", "recent-ESC", function()
-        unbind()
-    end)
+    list.list = build_list_items(entries)
+    list.selected = 1
+    list:update()
+    list:open()
 end
 
 -- remember if a youtube playlist has been passed
@@ -601,7 +525,7 @@ mp.observe_property("display-hidpi-scale", "native", function(_, scale)
 end)
 
 mp.register_event("file-loaded", function()
-    unbind()
+    list:close()
     cur_title, cur_path = get_path()
 end)
 

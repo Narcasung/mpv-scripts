@@ -9,6 +9,12 @@ local scroll_list = {
 
     cursor = [[➤\h]],
     indent = [[\h\h\h\h]],
+    --optional secondary marker shown when an item sets `.active` (true/false);
+    --independent of cursor position, e.g. "this is the currently active choice"
+    --vs "this is where the keyboard cursor is". Left blank by default so lists
+    --that never set `.active` on their items render exactly as before.
+    active_marker = [[]],
+    inactive_marker = [[]],
 
     num_entries = 16,
     wrap = false,
@@ -74,12 +80,29 @@ function scroll_list:format_header()
 end
 
 --formats each line of the list and prints it to the overlay
+--
+--items may optionally set `.active` (true/false) to opt into the secondary
+--marker described above; leaving it nil (the default) reproduces the
+--original single cursor-marker behaviour exactly.
 function scroll_list:format_line(index, item)
     self:append(self.list_style)
 
-    if index == self.selected then self:append(self.cursor_style..self.cursor..self.selected_style)
-    else self:append(self.indent) end
+    local is_cursor = (index == self.selected)
 
+    if is_cursor then
+        self:append(self.cursor_style)
+        if item.active then self:append(item.style) end
+        self:append(self.cursor)
+    else
+        self:append(self.indent)
+    end
+
+    if item.active ~= nil then
+        if item.active then self:append(item.style) end
+        self:append(item.active and self.active_marker or self.inactive_marker)
+    end
+
+    if is_cursor then self:append(self.selected_style) end
     self:append(item.style)
     self:append(item.ass)
     self:newline()
@@ -118,6 +141,11 @@ function scroll_list:update_ass()
     local overflow = finish < #self.list
     --this is necessary when the number of items in the dir is less than the max
     if not overflow then finish = #self.list end
+
+    --exposing the visible window so consumers can map a visible row number
+    --(e.g. a "jump to row N" keybind) back to an absolute list index
+    self.window_start = start
+    self.window_finish = finish
 
     --adding a header to show there are items above in the list
     if start > 1 then self:append(self.wrapper_style..(start-1)..' item(s) above\\N\\N') end
