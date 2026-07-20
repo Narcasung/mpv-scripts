@@ -321,10 +321,11 @@ function draw_menu(cursor, choices)
     for i, v in ipairs(choices) do
         local selected = (v.mode ~= "unset" and cur_mode == v.mode)
         local current_color = v.mode == "disabled" and yellow or v.mode == "unset" and red or green
+        local marker = v.mode == "unset" and "" or (selected and "● " or "○ ")
         if (cursor == i) then
-            osd_text = osd_text .. "\\N" .. (selected and current_color or yellow) .. "> " .. v.text .. white
+            osd_text = osd_text .. "\\N" .. (selected and current_color or yellow) .. "➤\\h" .. marker .. v.text .. white
         else
-            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. v.text .. (selected and white or "")
+            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. marker .. v.text .. (selected and white or "")
         end
     end
 
@@ -421,6 +422,11 @@ end
 function display_menu()
     if is_menu_drawn then
         hide()
+        return
+    end
+
+    if mp.get_property_native("idle-active") then
+        mp.osd_message("[Auto4k] No file loaded.")
         return
     end
 
