@@ -69,8 +69,6 @@ include_secondary_modes=yes
 font_size=100
 # cull oldest entries of the log if it goes beyond this number of lines
 max_log_lines=1000
-# amount of entries to show before slicing
-num_entries=20
 ```
 
 Put in auto4k.conf in `MPV/script-opts`. A sample file is available.
@@ -119,17 +117,18 @@ reserve_wrapper_lines=true
 
 # recent.lua
 
-Fork of https://github.com/hacel/recent.
+Fork of [recent](https://github.com/hacel/recent).
 
 Now requires `script-modules/scroll-list.lua` as a dependency.
 
-* Added youtube playlist support and log culling feature.
-* Changed the overlay appearance to look like Blackbox.
+* Added youtube playlist support.
+* Added log culling feature.
+* Changed the overlay appearance to match other scripts.
 * Added item timestamp prefix to list.
 
 # track-list.lua
 
-Fork of https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua.
+Fork of [track-list](https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua).
 
 Requires `script-modules/scroll-list.lua` as a dependency.
 
