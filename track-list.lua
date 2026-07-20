@@ -185,6 +185,16 @@ local function get_track_title(track, type, filename)
     return list.ass_escape(title)
 end
 
+--● / ○ (Geometric Shapes) aren't in the OSD font (Poppins), so they fall back to
+--Windows' regular "Segoe UI", which has a size-caching glitch on first render
+--(idle-vs-loaded osd size). The ➤ cursor doesn't show this because it's rare
+--enough to only fall back to "Segoe UI Symbol" instead, which doesn't have the
+--glitch. Forcing the same font as the cursor sidesteps it entirely.
+local FALLBACK_SYMBOL_FONT = "Segoe UI Symbol"
+local function marker(glyph)
+    return string.format([[{\fn%s}%s{\fn}]], FALLBACK_SYMBOL_FONT, glyph)
+end
+
 local function updateTrackList(title, type, prop)
     list.header = title .. ": " .. o.header
 
@@ -198,13 +208,13 @@ local function updateTrackList(title, type, prop)
                     id = nil,
                     index = nil,
                     disabled = false,
-                    ass = "○ None"
+                    ass = marker("○") .. " None"
                 }
             }
 
             if isTrackSelected(nil, type) then
                 list.selected = 1
-                list[1].ass = "● None"
+                list[1].ass = marker("●") .. " None"
                 list[1].style = o.active_style
             end
 
@@ -221,12 +231,12 @@ local function updateTrackList(title, type, prop)
                     if isTrackSelected(track.id, type) then
                         list.selected = track.id + 1
                         listItem.style = o.active_style
-                        listItem.ass = "● " .. title
+                        listItem.ass = marker("●") .. " " .. title
                     elseif isDisabled then
                         listItem.style = [[{\c&Hff6666&}]]
-                        listItem.ass = "○ " .. title
+                        listItem.ass = marker("○") .. " " .. title
                     else
-                        listItem.ass = "○ " .. title
+                        listItem.ass = marker("○") .. " " .. title
                     end
                     table.insert(list.list, listItem)
                 end
