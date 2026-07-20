@@ -18,7 +18,7 @@ Script to remember Anime4K (https://github.com/bloc97/Anime4K) status by generat
 
 ## Install
 
-Put auto4k.lua in the `MPV/scripts` folder.
+Put `auto4k.lua` in the `MPV/scripts` folder and `scroll-list.lua` in the `MPV/script-modules/` folder, create if needed.
 
 ### Changes to input.conf
 
@@ -61,7 +61,7 @@ auto_run=yes
 menu_yes_no=yes
 # the mode that will be activated if you choose yes. A, B, C, A+A, B+B, or C+A
 default_yes_mode=A
-# whether the choices will edit the whole playlist by default or not 
+# whether the choices will be in playlist scope by default or not
 default_playlist=yes
 # include A+A, B+B, C+A modes in the choices
 include_secondary_modes=yes
@@ -69,13 +69,59 @@ include_secondary_modes=yes
 font_size=100
 # cull oldest entries of the log if it goes beyond this number of lines
 max_log_lines=1000
+# amount of entries to show before slicing
+num_entries=20
 ```
 
 Put in auto4k.conf in `MPV/script-opts`. A sample file is available.
 
+# scroll-list.lua
+
+Dependency for creating navigable lists.
+All scripts using it also expose the following options: 
+
+```ini
+# ass style applied to the whole overlay
+global_style=
+# ass style for the list header line
+header_style={\q2\fs35\c&00ccff&}
+# ass style for each list entry
+list_style={\q2\fs25\c&Hffffff&}
+# ass style for the "N item(s) above/remaining" wrapper text
+wrapper_style={\c&00ccff&\fs16}
+# color used by wrapper_style, exposed separately for scripts that need to
+# resize/rescale wrapper_style but keep the same color
+wrapper_color=&00ccff&
+# ass style for the cursor
+cursor_style={\c&00ccff&}
+# ass style applied to the selected line
+selected_style={\c&Hfce788&}
+# cursor glyph shown next to the selected line
+cursor=➤\h
+# indent used for non-selected lines
+indent=\h\h\h\h
+# secondary marker shown when an item sets `.active` (true/false), independent
+# of the cursor position (e.g. "currently active choice" vs "keyboard cursor
+# position"). Left blank by default so lists that never set `.active` render
+# exactly as before.
+active_marker=
+inactive_marker=
+# max number of visible entries before scrolling
+num_entries=16
+# whether scrolling past the top/bottom wraps around
+wrap=false
+# text shown when the list is empty
+empty_text=no entries
+# always reserve vertical space for the "N item(s) above/remaining" lines so
+# the list doesn't shift up/down as they appear/disappear while scrolling
+reserve_wrapper_lines=true
+```
+
 # recent.lua
 
 Fork of https://github.com/hacel/recent.
+
+Now requires `script-modules/scroll-list.lua` as a dependency.
 
 * Added youtube playlist support and log culling feature.
 * Changed the overlay appearance to look like Blackbox.
@@ -87,16 +133,16 @@ Fork of https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua.
 
 Requires `script-modules/scroll-list.lua` as a dependency.
 
-* Resolves the scroll-list.lua dependency relative to the script's own file location instead of through mpv's `~~` config-dir expansion.
+* Resolves the scroll-list.lua dependency relative to the script's own file location instead of through mpv's `~~` config-dir expansion for portability.
 
 # SelectionMenu.js
 
-Modified version of [blackbox](https://github.com/VideoPlayerCode/mpv-tools)'s menu draw engine to not overlap my other script menus.
+Modified version of [Blackbox](https://github.com/VideoPlayerCode/mpv-tools)'s menu draw engine to not overlap my other script menus.
 
 # modernx.lua
 
-Modified version of [modernx](https://github.com/cyl0/ModernX/) to not overlap script menus with mpv's logo.
+Modified version of [ModernX](https://github.com/cyl0/ModernX/) to not overlap script menus with mpv's logo.
 
 # (WIP) help.lua
 
-Displays a list of mpv's commands and their associated keybinds. Doesn't work for now, don't download.
+Displays a list of mpv's commands and their associated keybinds. Doesn't work for now.
