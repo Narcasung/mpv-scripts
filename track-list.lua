@@ -23,16 +23,16 @@ local propNative = mp.get_property_native
 local o = {
     -- header of the list
     -- %cursor% and %total% to be used to display the cursor position and the total number of lists
-    header = "Track List [%cursor%/%total%]\\N ------------------------------------",
+    header = "Track List [%cursor%/%total%]\\N",
     --list ass style overrides inside curly brackets
     --these styles will be used for the whole list. so you need to reset them for every line
     --read http://docs.aegisub.org/3.2/ASS_Tags/ for reference of tags
     global_style = [[]],
-    header_style = [[{\q2\fs30\c&00ccff&}]],
-    list_style = [[{\q2\fs20\c&Hffffff&}]],
+    header_style = [[{\q2\fs18\c&H808080&}]],
+    list_style = [[{\q2\fs24\c&Hffffff&}]],
     wrapper_style = [[{\c&00ccff&\fs16}]],
     cursor_style = [[{\c&00ccff&}]],
-    selected_style = [[{\c&Hfce788&}]],
+    selected_style = [[{\c&H66FFFF&}]],
     active_style = [[{\c&H33ff66&}]],
     cursor = [[➤\h]],
     indent = [[\h\h\h]],
