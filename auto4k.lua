@@ -28,6 +28,17 @@ local utils = require("mp.utils")
 
 o.log_path = mp.command_native({"expand-path", o.log_path})
 
+--● / ○ (Geometric Shapes) and ➤ (Dingbats) aren't in the OSD font (Poppins), so
+--without an explicit \fn they fall back to whatever font Windows picks for the
+--glyph. Forcing Segoe UI Symbol keeps that consistent, and scaling them down a
+--notch keeps their visual weight in line with the surrounding text.
+local SYMBOL_FONT = "Segoe UI Symbol"
+local function marker(glyph)
+    local small = o.font_size * 0.75
+    return string.format([[{\fn%s\fscx%f\fscy%f}%s{\fn\fscx%f\fscy%f}]],
+        SYMBOL_FONT, small, small, glyph, o.font_size, o.font_size)
+end
+
 -- states
 local is_file_loaded = false
 local cur_file = ""
@@ -321,11 +332,11 @@ function draw_menu(cursor, choices)
     for i, v in ipairs(choices) do
         local selected = (v.mode ~= "unset" and cur_mode == v.mode)
         local current_color = v.mode == "disabled" and yellow or v.mode == "unset" and red or green
-        local marker = v.mode == "unset" and "" or (selected and "● " or "○ ")
+        local track_marker = v.mode == "unset" and "" or (selected and marker("●") .. " " or marker("○") .. " ")
         if (cursor == i) then
-            osd_text = osd_text .. "\\N" .. (selected and current_color or yellow) .. "➤\\h" .. normal_font .. marker .. v.text .. white
+            osd_text = osd_text .. "\\N" .. (selected and current_color or yellow) .. marker("➤") .. "\\h" .. normal_font .. track_marker .. v.text .. white
         else
-            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. normal_font .. marker .. v.text .. (selected and white or "")
+            osd_text = osd_text .. "\\N" .. (selected and current_color or "") .. normal_font .. track_marker .. v.text .. (selected and white or "")
         end
     end
 

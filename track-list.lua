@@ -20,6 +20,18 @@ local mp = require 'mp'
 local opts = require("mp.options")
 local propNative = mp.get_property_native
 
+--● / ○ (Geometric Shapes) and ➤ (Dingbats) aren't in the OSD font (Poppins), so
+--without an explicit \fn they fall back to whatever font Windows picks for the
+--glyph. Forcing Segoe UI Symbol keeps that consistent, and scaling them down a
+--notch keeps their visual weight in line with the surrounding text.
+local SYMBOL_FONT = "Segoe UI Symbol"
+local SYMBOL_BASE_SCALE = 100
+local SYMBOL_SMALL_SCALE = 75
+local function marker(glyph)
+    return string.format([[{\fn%s\fscx%d\fscy%d}%s{\fn\fscx%d\fscy%d}]],
+        SYMBOL_FONT, SYMBOL_SMALL_SCALE, SYMBOL_SMALL_SCALE, glyph, SYMBOL_BASE_SCALE, SYMBOL_BASE_SCALE)
+end
+
 local o = {
     -- header of the list
     -- %cursor% and %total% to be used to display the cursor position and the total number of lists
@@ -67,7 +79,7 @@ local list_type = nil
 --modifying the list settings
 local original_open = list.open
 list.header = o.header
-list.cursor = o.cursor
+list.cursor = marker("➤") .. [[\h]]
 list.indent = o.indent
 list.wrap = o.wrap
 list.num_entries = o.num_entries
@@ -183,16 +195,6 @@ local function get_track_title(track, type, filename)
     if track.default then title = title .. ' (Default)' end
 
     return list.ass_escape(title)
-end
-
---● / ○ (Geometric Shapes) aren't in the OSD font (Poppins), so they fall back to
---Windows' regular "Segoe UI", which has a size-caching glitch on first render
---(idle-vs-loaded osd size). The ➤ cursor doesn't show this because it's rare
---enough to only fall back to "Segoe UI Symbol" instead, which doesn't have the
---glitch. Forcing the same font as the cursor sidesteps it entirely.
-local FALLBACK_SYMBOL_FONT = "Segoe UI Symbol"
-local function marker(glyph)
-    return string.format([[{\fn%s}%s{\fn}]], FALLBACK_SYMBOL_FONT, glyph)
 end
 
 local function updateTrackList(title, type, prop)
