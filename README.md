@@ -81,6 +81,15 @@ Fork from https://github.com/hacel/recent.
 * Changed the overlay appearance to look like Blackbox.
 * Added item timestamp prefix to list
 
+# track-list.lua
+
+Customized fork of https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua, an interactive, arrow-key-navigable audio/subtitle track menu.
+
+Requires `script-modules/scroll-list.lua` (unmodified copy of https://github.com/CogentRedTester/mpv-scroll-list) as a dependency.
+
+* Resolves the scroll-list.lua dependency relative to the script's own file location instead of through mpv's `~~` config-dir expansion, so the whole `MPV` folder stays portable (works from any drive/path) instead of requiring `script-modules` to live in the primary config dir.
+* Dropped the `MBTN_MID` alt-binding from `key_reload_track` (kept `F5` only), since middle click is bound to `quit` by default and was being silently stolen while the track browser was open.
+
 # (WIP) help.lua
 
 Displays a list of mpv's commands and their associated keybinds. Doesn't work for now, don't download.
