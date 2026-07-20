@@ -339,7 +339,7 @@ function draw_list(list, start, choice)
         end
         p = p:gsub("\\", "\\\239\187\191"):gsub("{", "\\{"):gsub("^ ", "\\h")
         if i == choice + 1 then
-            msg = msg .. hi_start .. "> " .. date .. " " .. strip_title(p) .. "\\N" .. hi_end
+            msg = msg .. hi_start .. "➤\\h" .. date .. " " .. strip_title(p) .. "\\N" .. hi_end
         else
             msg = msg .. date .. " " .. strip_title(p) .. "\\N"
         end
