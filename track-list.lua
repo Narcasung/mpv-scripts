@@ -23,7 +23,7 @@ local propNative = mp.get_property_native
 local o = {
     -- header of the list
     -- %cursor% and %total% to be used to display the cursor position and the total number of lists
-    header = "Track List [%cursor%/%total%]\\N",
+    header = "Track List [%cursor%/%total%]\\N ------------------------------------",
     --list ass style overrides inside curly brackets
     --these styles will be used for the whole list. so you need to reset them for every line
     --read http://docs.aegisub.org/3.2/ASS_Tags/ for reference of tags
@@ -32,10 +32,10 @@ local o = {
     list_style = [[{\q2\fscx100\fscy100\bord0.5\c&Hffffff&}]],
     wrapper_style = [[{\c&00ccff&\fscx67\fscy67\bord0.335}]],
     cursor_style = [[{\c&00ccff&}]],
-    selected_style = [[{\c&H66FFFF&}]],
+    selected_style = [[{\c&Hfce788&}]],
     active_style = [[{\c&H33ff66&}]],
     cursor = [[➤\h]],
-    indent = [[]],
+    indent = [[\h\h\h]],
     --amount of entries to show before slicing. Optimal value depends on font/video size etc.
     num_entries = 16,
     --slice long filenames, and how many chars to show
@@ -50,7 +50,7 @@ local o = {
     key_scroll_down = "DOWN WHEEL_DOWN",
     key_scroll_up = "UP WHEEL_UP",
     key_select_track = "ENTER MBTN_LEFT",
-    key_reload_track = "F5",
+    key_reload_track = "F5 MBTN_MID",
     key_remove_track = "DEL BS",
     key_close_browser = "ESC MBTN_RIGHT",
 }
