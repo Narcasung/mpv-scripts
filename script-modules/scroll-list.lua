@@ -12,6 +12,13 @@ local WRAPPER_COLOR = [[&00ccff&]]
 local CLOSE_OTHERS_MESSAGE = 'mpv-scripts-close-other-lists'
 local SCRIPT_NAME = mp.get_script_name()
 
+--shared property so unrelated scripts (e.g. modernx.lua's idle screen) can
+--tell whether any of these lists is currently on screen and yield to it.
+--holds the owning script's name rather than a plain boolean so a delayed
+--cross-script close (see CLOSE_OTHERS_MESSAGE) can't clobber a different
+--list that has since opened and claimed it
+local LIST_OPEN_PROPERTY = 'user-data/mpv-scripts/list-open'
+
 local scroll_list = {
     global_style = [[]],
     header_style = [[{\q2\fs35\c&00ccff&}]],
@@ -268,6 +275,7 @@ end
 --opens the list and sets the hidden flag
 function scroll_list:open_list()
     self.hidden = false
+    mp.set_property_native(LIST_OPEN_PROPERTY, SCRIPT_NAME)
     if not self.flag_update then mp.set_osd_ass(0, 0, self.ass.data)
     else self.flag_update = false ; self:update_ass() end
 end
@@ -275,6 +283,10 @@ end
 --closes the list and sets the hidden flag
 function scroll_list:close_list()
     self.hidden = true
+    --only clear the property if we're still its recorded owner
+    if mp.get_property_native(LIST_OPEN_PROPERTY) == SCRIPT_NAME then
+        mp.set_property_native(LIST_OPEN_PROPERTY, false)
+    end
     mp.set_osd_ass(0, 0, "")
 end
 
