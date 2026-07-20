@@ -6,6 +6,12 @@ local mp = require 'mp'
 --their own.
 local WRAPPER_COLOR = [[&00ccff&]]
 
+--broadcast on open so the other scroll-list-based scripts (track-list.lua,
+--recent.lua, auto4k.lua) close their own list, since they all share OSD
+--overlay id 0 and their keybinds would otherwise fight each other
+local CLOSE_OTHERS_MESSAGE = 'mpv-scripts-close-other-lists'
+local SCRIPT_NAME = mp.get_script_name()
+
 local scroll_list = {
     global_style = [[]],
     header_style = [[{\q2\fs35\c&00ccff&}]],
@@ -274,6 +280,7 @@ end
 
 --modifiable function that opens the list
 function scroll_list:open()
+    mp.commandv('script-message', CLOSE_OTHERS_MESSAGE, SCRIPT_NAME)
     if self.hidden then self:add_keybinds() end
     self:open_list()
 end
@@ -350,6 +357,13 @@ function scroll_list:new()
             {'ESC', 'close_browser', function() vars:close() end, {}}
         }
     }
+
+    --closes this list when another script's list opens; sender name check
+    --stops a script from closing its own list off its own broadcast
+    mp.register_script_message(CLOSE_OTHERS_MESSAGE, function(sender)
+        if sender ~= SCRIPT_NAME and not vars.hidden then vars:close() end
+    end)
+
     return setmetatable(vars, metatable)
 end
 
