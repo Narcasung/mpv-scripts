@@ -334,6 +334,9 @@ list.selected_style = [[]]
 list.cursor = marker("➤") .. [[\h]]
 list.active_marker = marker("●") .. " "
 list.inactive_marker = marker("○") .. " "
+--this menu never overflows num_entries, so reserving the above/remaining
+--lines would just add a permanent blank line top and bottom
+list.reserve_wrapper_lines = false
 
 local function build_item(choice)
     local item = {mode = choice.mode, ass = choice.text}

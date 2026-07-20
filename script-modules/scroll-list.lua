@@ -26,7 +26,13 @@ local scroll_list = {
 
     num_entries = 16,
     wrap = false,
-    empty_text = "no entries"
+    empty_text = "no entries",
+    --when true, the "N item(s) above/remaining" lines always occupy their
+    --vertical space (blank when there's nothing to report) so the list
+    --doesn't shift up/down as those indicators appear/disappear. Scripts
+    --whose lists never overflow num_entries (e.g. auto4k.lua's menus) can
+    --set this to false to avoid a permanent blank line above/below.
+    reserve_wrapper_lines = true
 }
 
 --caps large above/remaining counts so the wrapper text doesn't grow unbounded
@@ -163,13 +169,23 @@ function scroll_list:update_ass()
     self.window_finish = finish
 
     --adding a header to show there are items above in the list
-    if start > 1 then self:append(self.wrapper_style..scroll_list.format_count(start-1)..' item(s) above\\N\\N') end
+    --wrapper_style is always applied (even when the text itself is blank) so
+    --the reserved placeholder line keeps the same \fs as the real text and
+    --doesn't inherit a taller font size from whatever style preceded it.
+    --when blank, a hard space (\h) stands in for the text instead of leaving
+    --the line truly empty: a bare \N\N with no glyph before it renders at an
+    --inconsistent height, same as the old recent.lua's ellipsis line did it
+    local above_text = "\\h"
+    if start > 1 then above_text = scroll_list.format_count(start-1)..' item(s) above' end
+    if self.reserve_wrapper_lines or start > 1 then self:append(self.wrapper_style..above_text..'\\N\\N') end
 
     for i=start, finish do
         self:format_line(i, self.list[i])
     end
 
-    if overflow then self:append('\\N'..self.wrapper_style..scroll_list.format_count(#self.list-finish)..' item(s) remaining') end
+    local remaining_text = "\\h"
+    if overflow then remaining_text = scroll_list.format_count(#self.list-finish)..' item(s) remaining' end
+    if self.reserve_wrapper_lines or overflow then self:append('\\N'..self.wrapper_style..remaining_text) end
     mp.set_osd_ass(0, 0, self.ass.data)
 end
 
