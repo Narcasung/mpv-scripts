@@ -75,7 +75,11 @@ Put in `script-opts/auto4k.conf`. A sample file is available on this repo.
 
 # help.lua
 
-Displays a list of mpv's commands and their associated keybinds. Navigable with arrows, press `ENTER` to run the selected command.
+Displays a list of mpv's commands and their associated keybinds.
+
+* Navigable with arrows
+* Press `ENTER` to run the selected command.
+
 Only currently active binds are displayed. If a script or any other condition overwrite a bind, you won't see the overwritten bind.
 
 ## Install
@@ -107,6 +111,9 @@ max_columns=3
 font_scale=100
 # font scale of the title, in percent
 title_font_scale=75
+# font scale of the search line, in percent. the columns start below whatever
+# room it needs, so raising this pushes them down instead of overlapping them
+search_font_scale=75
 # colors, written the way ass wants them: hex, blue-green-red
 font_color=HFFFFFF
 title_font_color=H808080

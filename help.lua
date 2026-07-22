@@ -10,6 +10,7 @@ local o = {
     -- Font scale
     font_scale = 100,
     title_font_scale = 75,
+    search_font_scale = 75,
     -- Font colors
     font_color = "HFFFFFF",
     title_font_color = "H808080",
@@ -67,6 +68,9 @@ local help_displayed = false
 --height jumps sideways. the layout figures are refreshed on every build
 local state = {
     selected = 1,
+    -- current search text, and the entries left once it has been applied
+    query = "",
+    visible = {},
     -- leftmost column currently on screen, 1-based
     first_col = 1,
     total = 0,
@@ -254,12 +258,40 @@ local function build_ass()
         entries = collect_binds()
         state.entries = entries
     end
+    --the search matches what's actually on screen: the command as displayed and
+    --each of the entry's keys. matched as plain text rather than as a lua
+    --pattern, so typing a "-" or a "+" searches for that character
+    local query = state.query
+    local visible = entries
+    if query ~= "" then
+        local needle = query:lower()
+        visible = {}
+        for _, entry in ipairs(entries) do
+            local hit = entry.cmd:lower():find(needle, 1, true) ~= nil
+            if not hit then
+                for _, key in ipairs(entry.keys) do
+                    if key:lower():find(needle, 1, true) then
+                        hit = true
+                        break
+                    end
+                end
+            end
+            if hit then visible[#visible + 1] = entry end
+        end
+    end
+    state.visible = visible
+    entries = visible
+
     local res_x, res_y = canvas_size()
     local osd_size = mp.get_property_number("osd-font-size", 22)
 
     local title_size = osd_size * (o.title_font_scale / 100)
-    -- title line plus the blank line under it
-    local body_y = o.margin_y + title_size * LINE_SPACING * 2
+    local search_size = osd_size * (o.search_font_scale / 100)
+    -- the search line sits under the title, and the columns start below it. the
+    -- room it takes is reserved whether or not a search is running, so the list
+    -- can't jump down a row the moment one starts
+    local search_y = o.margin_y + title_size * LINE_SPACING
+    local body_y = search_y + search_size * LINE_SPACING
 
     local lines_per_col = math.max(1, o.max_lines)
     local col_w = (res_x - o.margin_x * 2) / o.max_columns
@@ -331,6 +363,21 @@ local function build_ass()
             o.margin_x, o.margin_y, o.title_font_scale, o.title_font_scale,
             o.title_font_color, state.selected, total)
     }
+
+    if query ~= "" then
+        events[#events + 1] = string.format(
+            "{\\an7\\q2\\pos(%.1f,%.1f)}{\\fscx%f\\fscy%f}{\\1c&%s&}Search: " ..
+                "{\\1c&%s&}%s{\\1c&%s&}\\h\\h\\hPress ESC to clear",
+            o.margin_x, search_y,
+            o.search_font_scale, o.search_font_scale,
+            o.title_font_color, o.font_color, ass_escape(query), o.title_font_color)
+    end
+
+    if total == 0 then
+        events[#events + 1] = string.format(
+            "{\\an7\\q2\\pos(%.1f,%.1f)}{\\fscx%f\\fscy%f}{\\1c&%s&}No match",
+            o.margin_x, body_y, o.font_scale, o.font_scale, o.title_font_color)
+    end
 
     for slot = 0, o.max_columns - 1 do
         local col = first_col + slot
@@ -451,6 +498,34 @@ local function move_column(delta)
     display_overlay()
 end
 
+--every change to the search re-filters the list, so the cursor and the column
+--window start over rather than pointing at whatever used to sit there
+local function set_query(query)
+    if query == state.query then return end
+
+    state.query = query
+    state.selected = 1
+    state.first_col = 1
+    display_overlay()
+end
+
+--ANY_UNICODE catches every key that produces text, which saves binding the
+--whole keyboard one key at a time. the complex form is what carries key_text,
+--and the event filter keeps a single press from typing twice
+local function type_query(event)
+    if type(event) ~= "table" or not event.key_text then return end
+    if event.event ~= "down" and event.event ~= "repeat" and event.event ~= "press" then
+        return
+    end
+
+    set_query(state.query .. event.key_text)
+end
+
+local function backspace()
+    if state.query == "" then return end
+    set_query(utf8_sub(state.query, utf8_len(state.query) - 1))
+end
+
 -- declared up here so the keybinds can reach it before hide_help exists
 local run_selected
 
@@ -459,7 +534,12 @@ local KEYBINDS = {
     {"DOWN", "help-down", function() move_row(1) end, {repeatable = true}},
     {"LEFT", "help-left", function() move_column(-1) end, {repeatable = true}},
     {"RIGHT", "help-right", function() move_column(1) end, {repeatable = true}},
-    {"ESC", "help-ESC", function() toggle_help() end, {}},
+    {"BS", "help-backspace", function() backspace() end, {repeatable = true}},
+    {"ANY_UNICODE", "help-search", type_query, {complex = true, repeatable = true}},
+    -- a first press drops the search, a second one closes the list
+    {"ESC", "help-ESC", function()
+        if state.query ~= "" then set_query("") else toggle_help() end
+    end, {}},
     {"ENTER", "help-ENTER", function() run_selected() end, {}}
 }
 
@@ -479,6 +559,7 @@ local function hide_help()
     if not help_displayed then return end
     help_displayed = false
     state.entries = nil
+    state.visible = {}
     unbind()
     --only clear the property if we're still its recorded owner
     if mp.get_property_native(LIST_OPEN_PROPERTY) == SCRIPT_NAME then
@@ -491,7 +572,8 @@ end
 --goes away first: the command is free to print to the OSD or open a list of
 --its own, and this script's forced keybinds have to be off the way by then
 run_selected = function()
-    local entry = state.entries and state.entries[state.selected]
+    -- indexed against what's on screen, which the search may have narrowed
+    local entry = state.visible and state.visible[state.selected]
     hide_help()
     if not entry or not entry.raw then return end
 
@@ -512,6 +594,7 @@ local function show_help()
     -- column window start over
     state.selected = 1
     state.first_col = 1
+    state.query = ""
     state.entries = nil
     -- drawn before bind() on purpose, see the note in build_ass
     if not display_overlay() then return end
