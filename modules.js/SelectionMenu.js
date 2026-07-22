@@ -15,6 +15,21 @@
 var Ass = require('AssFormat'),
     Utils = require('MicroUtils');
 
+// Poppins (the OSD font) lacks ➤, so force a font that has it, same fix
+// used for the cursor glyph in the mpv-scripts Lua scroll-list menus.
+var CURSOR_GLYPH = '➤',
+    SYMBOL_FONT = 'Segoe UI Symbol',
+    // Matches the cursor yellow used by the mpv-scripts Lua scroll-list
+    // menus (auto4k.lua etc.), not AssFormat's washed-out Ass.yellow.
+    CURSOR_COLOR = 'FFFF66';
+
+function marker(glyph, output)
+{
+    if (output === false)
+        return glyph;
+    return '{\\fn'+SYMBOL_FONT+'}'+Ass.scale(75, output)+glyph+Ass.scale(100, output)+'{\\fn}';
+}
+
 var SelectionMenu = function(settings)
 {
     settings = settings || {};
@@ -195,8 +210,10 @@ SelectionMenu.prototype.getSelectedItem = function()
 {
     if (this.selectionIdx < 0 || this.selectionIdx >= this.options.length)
         return '';
-    else
-        return this.options[this.selectionIdx];
+    // Object options (`{menuText, style}`) exist only to carry display styling;
+    // callers always expect the plain text, same as string options.
+    var opt = this.options[this.selectionIdx];
+    return typeof opt === 'object' ? opt.menuText : opt;
 };
 
 SelectionMenu.prototype._processBindings = function(fnCb)
@@ -414,24 +431,33 @@ SelectionMenu.prototype.renderMenu = function(selectionPrefix, renderMode)
             startIdx = 0;
 
         // Format and add all output lines.
-        var opt;
+        var opt, isObj;
         for (var i = startIdx; i <= endIdx; ++i) {
             opt = this.options[i];
+            isObj = typeof opt === 'object';
+            // Reset color at the start of every line, so an object option's
+            // `.style` (below) never bleeds into the next line, and so it
+            // always wins over the cursor's yellow regardless of selection.
+            finalString += Ass.white(c);
             if (i === this.selectionIdx)
                 // NOTE: Prefix stays on screen until cursor-move or re-render.
-                finalString += Ass.yellow(c)+'> '+(typeof selectionPrefix === 'string' ?
+                finalString += Ass.color(CURSOR_COLOR, c)+marker(CURSOR_GLYPH, c)+' '+(typeof selectionPrefix === 'string' ?
                                                    Ass.esc(selectionPrefix, c)+' ' : '');
+            if (isObj && opt.style)
+                finalString += opt.style(c);
+            if (isObj && opt.prefix)
+                finalString += Ass.esc(opt.prefix, c);
+            if (isObj && opt.glyph)
+                finalString += marker(opt.glyph, c)+' ';
             finalString += (
                 i === startIdx && startIdx > 0 ? '...' :
                     (
                         i === endIdx && endIdx < maxIdx ? '...' : Ass.esc(
-                            typeof opt === 'object' ? opt.menuText : opt,
+                            isObj ? opt.menuText : opt,
                             c
                         )
                     )
             );
-            if (i === this.selectionIdx)
-                finalString += Ass.white(c);
             if (i !== endIdx)
                 finalString += '\n';
         }

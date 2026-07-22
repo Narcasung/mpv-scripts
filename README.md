@@ -18,7 +18,7 @@ Script to remember Anime4K (https://github.com/bloc97/Anime4K) status by generat
 
 ## Install
 
-Put `auto4k.lua` in the `MPV/scripts` folder and `scroll-list.lua` in the `MPV/script-modules/` folder, create if needed.
+Put `auto4k.lua` in your `mpv/scripts` folder and `scroll-list.lua` in your `mpv/script-modules/` folder, create if needed.
 
 ### Changes to input.conf
 
@@ -53,7 +53,7 @@ Comes with configurable options:
 enable_logging=yes
 # log file path, default in mpv config's root folder
 log_path=~~home/auto4k.log
-# anime4k shaders path. if installed correctly in MPV/shaders/, don't touch anything
+# anime4k shaders path. if installed correctly in mpv/shaders/, don't touch anything
 shader_path=~~/shaders/
 # auto displays the menu on an unrecognized file
 auto_run=yes
@@ -71,7 +71,7 @@ font_size=100
 max_log_lines=1000
 ```
 
-Put in auto4k.conf in `MPV/script-opts`. A sample file is available.
+Put in auto4k.conf in `mpv/script-opts`. A sample file is available.
 
 # scroll-list.lua
 
@@ -117,30 +117,49 @@ reserve_wrapper_lines=true
 
 # recent.lua
 
-Fork of [recent](https://github.com/hacel/recent).
+Modified [recent](https://github.com/hacel/recent).
 
-Now requires `script-modules/scroll-list.lua` as a dependency.
+Now requires `script-modules/scroll-list.lua`.
 
 * Added youtube playlist support.
 * Added log culling feature.
 * Changed the overlay appearance to match other scripts.
 * Added item timestamp prefix to list.
 
+## Install
+
+Put `recent.lua` in your `mpv/scripts` folder and `scroll-list.lua` in your `mpv/script-modules/` folder.
+
 # track-list.lua
 
-Fork of [track-list](https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua).
+Modified [track-list](https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua).
 
-Requires `script-modules/scroll-list.lua` as a dependency.
+Requires `script-modules/scroll-list.lua`.
 
 * Resolves the scroll-list.lua dependency relative to the script's own file location instead of through mpv's `~~` config-dir expansion for portability.
 
-# SelectionMenu.js
+## Install
 
-Modified version of [Blackbox](https://github.com/VideoPlayerCode/mpv-tools)'s menu draw engine to not overlap my other script menus.
+Put `track-list.lua` in your `mpv/scripts` folder and `scroll-list.lua` in your `mpv/script-modules/` folder.
+
+# Blackbox.js
+
+Modified [Blackbox](https://github.com/VideoPlayerCode/mpv-tools)
+
+* Modified menu draw logic to not overlap other script menus.
+* Changed ascii symbol navigation with more modern symbols.
+
+## Install
+
+Install [Blackbox](https://github.com/VideoPlayerCode/mpv-tools) first. Copy `Blackbox.js` in your `mpv/scripts` folder and `modules.js/` folder in your `mpv/` folder, overwrite when asked.
 
 # modernx.lua
 
-Modified version of [ModernX](https://github.com/cyl0/ModernX/) to not overlap script menus with mpv's logo.
+Modified [ModernX](https://github.com/cyl0/ModernX/) to not overlap script menus with mpv's logo.
+
+## Install
+
+Put `modernx.lua` in your `mpv/scripts` folder.
 
 # (WIP) help.lua
 
