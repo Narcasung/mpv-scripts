@@ -5,13 +5,11 @@ Script to remember Anime4K (https://github.com/bloc97/Anime4K) status by generat
 ![default](screenshots/default.png)
 
 * Can apply and remember Anime4K mode to a file or a whole playlist.
-
 * Once an unrecognized file loads, a menu will ask if you want to use Anime4K for the file/playlist.
 
 ![prompt](screenshots/prompt.png)
 
 * Includes a bindable menu to check the active mode and change it.
-
 * Can disable logging. While it removes most of the script's features, it's still useful to check the current Anime4K mode.
 
 ![nolog](screenshots/nolog.png)
@@ -77,8 +75,13 @@ Put in `script-opts/auto4k.conf`. A sample file is available on this repo.
 
 Displays a list of mpv's commands and their associated keybinds.
 
-* Navigable with arrows
+![help](screenshots/help.png)
+
+* Navigable with arrows.
 * Press `ENTER` to run the selected command.
+* Search function that matches both commands and keybinds.
+
+![help-search](screenshots/help-search.png)
 
 Only currently active binds are displayed. If a script or any other condition overwrite a bind, you won't see the overwritten bind.
 
