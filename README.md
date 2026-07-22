@@ -144,6 +144,7 @@ Modified [Blackbox](https://github.com/VideoPlayerCode/mpv-tools)
 
 * Modified menu draw logic to not overlap other script menus.
 * Changed ascii symbol navigation with more modern symbols.
+* Menus now hide on file load.
 
 ## Install
 
