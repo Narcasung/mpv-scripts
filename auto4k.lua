@@ -340,7 +340,7 @@ list.reserve_wrapper_lines = false
 
 local function build_item(choice)
     local item = {mode = choice.mode, ass = choice.text}
-    if choice.mode ~= "unset" then
+    if choice.mode ~= "unset" and not choice.binary then
         local is_active = (cur_mode == choice.mode)
         local current_color = choice.mode == "disabled" and yellow or green
         item.active = is_active
@@ -424,8 +424,9 @@ end
 
 function get_choices(mode)
     local base = {}
+    local binary = mode == "unset" and o.menu_yes_no
 
-    if mode == "unset" and o.menu_yes_no then
+    if binary then
         base = {"Yes", "No"}
     else
         if o.enable_logging and mode ~= "unset" then
@@ -447,7 +448,8 @@ function get_choices(mode)
     for i, v in ipairs(base) do
         table.insert(choices, {
             text = v,
-            mode = match_mode(v)
+            mode = match_mode(v),
+            binary = binary
         })
     end
     return choices
