@@ -1,12 +1,16 @@
-Personal mpv scripts.
-
-* [auto4k.lua](#auto4klua) — remembers the Anime4K mode of a file or playlist.
-* [help.lua](#helplua) — searchable list of mpv's commands and their keybinds.
-* [scroll-list.lua](#scroll-listlua) — shared dependency for navigable lists.
-* [recent.lua](#recentlua) — recently played files.
-* [track-list.lua](#track-listlua) — interactive track menus.
-* [Blackbox.js](#blackboxjs) — file browser and playlist manager.
-* [modernx.lua](#modernxlua) — OSC replacement.
+* [auto4k.lua](#auto4klua)
+    * [Install](#install)
+        * [Changes to input.conf](#changes-to-inputconf)
+        * [Options](#options)
+* [help.lua](#helplua)
+    * [Install](#install-1)
+        * [Bind the script in input.conf](#bind-the-script-in-inputconf)
+        * [Options](#options-1)
+* [scroll-list.lua](#scroll-listlua)
+* [recent.lua](#recentlua)
+* [track-list.lua](#track-listlua)
+* [Blackbox.js](#blackboxjs)
+* [modernx.lua](#modernxlua)
 
 # auto4k.lua
 
