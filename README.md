@@ -1,3 +1,13 @@
+Personal mpv scripts.
+
+* [auto4k.lua](#auto4klua) — remembers the Anime4K mode of a file or playlist.
+* [help.lua](#helplua) — searchable list of mpv's commands and their keybinds.
+* [scroll-list.lua](#scroll-listlua) — shared dependency for navigable lists.
+* [recent.lua](#recentlua) — recently played files.
+* [track-list.lua](#track-listlua) — interactive track menus.
+* [Blackbox.js](#blackboxjs) — file browser and playlist manager.
+* [modernx.lua](#modernxlua) — OSC replacement.
+
 # auto4k.lua
 
 Script to remember Anime4K (https://github.com/bloc97/Anime4K) status by generating and reading a log file.
