@@ -413,10 +413,12 @@ Blackbox.prototype._registerCallbacks = function()
             browser.menu.renderMenu('[added to playlist!]');
             break;
         case 'playlist':
-            if (selection.targetPath >= 1) // Ensure target isn't a special ID.
+            if (selection.targetPath >= 1) { // Ensure target isn't a special ID.
                 // We have a verified playlist index (selection). Jump to it.
                 // NOTE: If this HAD been out-of-index, mpv ignores the command.
                 mp.set_property('playlist-pos-1', selection.targetPath);
+                browser.menu.hideMenu();
+            }
             break;
         default:
             mp.msg.error('Unknown selection type: '+selection.targetType);
@@ -454,10 +456,12 @@ Blackbox.prototype._registerCallbacks = function()
             mp.osd_message(osdText, 2); // Use regular OSD due to hiding menu.
             break;
         case 'playlist':
-            if (selection.targetPath >= 1) // Ensure target isn't a special ID.
+            if (selection.targetPath >= 1) { // Ensure target isn't a special ID.
                 // We have a verified playlist index (selection). Jump to it.
                 // NOTE: If this HAD been out-of-index, mpv ignores the command.
                 mp.set_property('playlist-pos-1', selection.targetPath);
+                browser.menu.hideMenu();
+            }
             else if (selection.targetPath === browser.clearPlaylistId)
                 // This command clears the playlist, except the playing file.
                 mp.commandv('playlist-clear');
