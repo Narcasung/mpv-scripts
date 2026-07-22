@@ -113,7 +113,7 @@ font_scale=100
 title_font_scale=75
 # font scale of the search line, in percent. the columns start below whatever
 # room it needs, so raising this pushes them down instead of overlapping them
-search_font_scale=75
+search_font_scale=100
 # colors, written the way ass wants them: hex, blue-green-red
 font_color=HFFFFFF
 title_font_color=H808080

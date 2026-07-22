@@ -10,7 +10,7 @@ local o = {
     -- Font scale
     font_scale = 100,
     title_font_scale = 75,
-    search_font_scale = 75,
+    search_font_scale = 100,
     -- Font colors
     font_color = "HFFFFFF",
     title_font_color = "H808080",
@@ -367,10 +367,17 @@ local function build_ass()
     if query ~= "" then
         events[#events + 1] = string.format(
             "{\\an7\\q2\\pos(%.1f,%.1f)}{\\fscx%f\\fscy%f}{\\1c&%s&}Search: " ..
-                "{\\1c&%s&}%s{\\1c&%s&}\\h\\h\\hPress ESC to clear",
+                "{\\1c&%s&}%s{\\1c&%s&}\\h\\h\\h\\h\\h\\h\\h\\hPress ESC to clear",
             o.margin_x, search_y,
             o.search_font_scale, o.search_font_scale,
             o.title_font_color, o.font_color, ass_escape(query), o.title_font_color)
+    else
+        -- the line is reserved either way, so it carries the hints when idle
+        events[#events + 1] = string.format(
+            "{\\an7\\q2\\pos(%.1f,%.1f)}{\\fscx%f\\fscy%f}{\\1c&%s&}" ..
+                "Start typing to search...\\h\\h\\h\\h\\h\\h\\h\\hESC to close",
+            o.margin_x, search_y,
+            o.search_font_scale, o.search_font_scale, o.title_font_color)
     end
 
     if total == 0 then
@@ -509,16 +516,53 @@ local function set_query(query)
     display_overlay()
 end
 
+--the numpad keys are named rather than textual, so ANY_UNICODE never matches
+--them at all ("No key binding found for key 'KP_ADD'") and they never reach
+--this script. each one is bound in its own right further down instead
+local KEYPAD_TEXT = {
+    KP_ADD = "+", KP_SUBTRACT = "-", KP_MULTIPLY = "*", KP_DIVIDE = "/",
+    KP_DEC = ".",
+    KP0 = "0", KP1 = "1", KP2 = "2", KP3 = "3", KP4 = "4",
+    KP5 = "5", KP6 = "6", KP7 = "7", KP8 = "8", KP9 = "9"
+}
+
+--mpv fills key_text in only when no modifier is held, so a shifted symbol can
+--arrive carrying nothing but its name
+local function event_text(event)
+    if event.key_text then return event.key_text end
+
+    local name = event.key_name
+    if not name or name == "" then return nil end
+
+    -- those modifiers never stand for text, whatever key they're held with
+    if name:find("Ctrl+", 1, true) or name:find("Alt+", 1, true)
+        or name:find("Meta+", 1, true) then
+        return nil
+    end
+
+    --whatever trails the last modifier is the key itself, and a name that is
+    --one character long is simply that character ("+" names itself)
+    local bare = name:match("([^+]+)$") or name
+    if utf8_len(bare) == 1 then return bare end
+    return nil
+end
+
 --ANY_UNICODE catches every key that produces text, which saves binding the
 --whole keyboard one key at a time. the complex form is what carries key_text,
 --and the event filter keeps a single press from typing twice
 local function type_query(event)
-    if type(event) ~= "table" or not event.key_text then return end
+    if type(event) ~= "table" then return end
     if event.event ~= "down" and event.event ~= "repeat" and event.event ~= "press" then
         return
     end
 
-    set_query(state.query .. event.key_text)
+    local text = event_text(event)
+    if not text then
+        msg.debug("no text for key " .. tostring(event.key_name))
+        return
+    end
+
+    set_query(state.query .. text)
 end
 
 local function backspace()
@@ -540,8 +584,18 @@ local KEYBINDS = {
     {"ESC", "help-ESC", function()
         if state.query ~= "" then set_query("") else toggle_help() end
     end, {}},
-    {"ENTER", "help-ENTER", function() run_selected() end, {}}
+    {"ENTER", "help-ENTER", function() run_selected() end, {}},
+    {"KP_ENTER", "help-KP_ENTER", function() run_selected() end, {}}
 }
+
+--one binding each for the numpad, since ANY_UNICODE can't see them
+for key, text in pairs(KEYPAD_TEXT) do
+    KEYBINDS[#KEYBINDS + 1] = {
+        key, "help-" .. key,
+        function() set_query(state.query .. text) end,
+        {repeatable = true}
+    }
+end
 
 local function bind()
     for _, v in ipairs(KEYBINDS) do
