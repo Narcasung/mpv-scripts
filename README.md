@@ -18,7 +18,7 @@ Script to remember Anime4K (https://github.com/bloc97/Anime4K) status by generat
 
 ## Install
 
-Put `auto4k.lua` in your `mpv/scripts` folder and [install `scroll-list.lua`](#install-1).
+Put `auto4k.lua` in your `mpv/scripts` folder and [install `scroll-list.lua`](#install-2).
 
 ### Changes to input.conf
 
@@ -71,7 +71,59 @@ font_size=100
 max_log_lines=1000
 ```
 
-Put in auto4k.conf in `mpv/script-opts`. A sample file is available.
+Put in `script-opts/auto4k.conf`. A sample file is available on this repo.
+
+# help.lua
+
+Displays a list of mpv's commands and their associated keybinds. Navigable with arrows, press `ENTER` to run the selected command.
+Only currently active binds are displayed. If a script or any other condition overwrite a bind, you won't see the overwritten bind.
+
+## Install
+
+Put `help.lua` in your `mpv/scripts`.
+
+### Bind the script in input.conf
+
+Script's default hotkey is `h`. If you want to modify or remove it, add an `input.conf` entry:
+
+```
+[your keybind] script-binding toggle-help
+```
+
+### Options
+
+Tweak these options to make the list correctly display on your mpv window:
+
+```ini
+# key that brings the list up
+bind=h
+# number of entries listed per column, the column number header sitting on top
+max_lines=27
+# max number of characters on one line, command and keys together
+max_char=50
+# number of columns shown at once. the list scrolls sideways through the rest
+max_columns=3
+# font scale of the entries, in percent
+font_scale=100
+# font scale of the title, in percent
+title_font_scale=75
+# colors, written the way ass wants them: hex, blue-green-red
+font_color=HFFFFFF
+title_font_color=H808080
+# color of the keys, on the right of each entry
+font_bind_color=H66FFFF
+# color of the entry the cursor is on
+cursor_font_color=H00FF00
+# color of the "Script" word heading script bindings
+script_font_color=HAAAAFF
+# margins, in canvas units. the canvas is 720 units tall, whatever the window
+margin_x=20
+margin_y=20
+# gap kept between two columns, in canvas units
+column_gap=30
+```
+
+Put in `script-opts/help.conf`. A sample file is available on this repo.
 
 # scroll-list.lua
 
@@ -115,7 +167,7 @@ empty_text=no entries
 reserve_wrapper_lines=true
 ```
 
-## Install
+### Install
 
 Put `scroll-list.lua` in your `mpv/script-modules/` folder, create if needed.
 
@@ -153,7 +205,3 @@ Install [Blackbox](https://github.com/VideoPlayerCode/mpv-tools) first. Copy `Bl
 # modernx.lua
 
 Modified [ModernX](https://github.com/cyl0/ModernX/) to not overlap script menus with mpv's logo.
-
-# (WIP) help.lua
-
-Displays a list of mpv's commands and their associated keybinds. Doesn't work for now.
