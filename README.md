@@ -18,7 +18,7 @@ Script to remember Anime4K (https://github.com/bloc97/Anime4K) status by generat
 
 ## Install
 
-Put `auto4k.lua` in your `mpv/scripts` folder and `scroll-list.lua` in your `mpv/script-modules/` folder, create if needed.
+Put `auto4k.lua` in your `mpv/scripts` folder and [install `scroll-list.lua`](#install-1).
 
 ### Changes to input.conf
 
@@ -115,6 +115,10 @@ empty_text=no entries
 reserve_wrapper_lines=true
 ```
 
+## Install
+
+Put `scroll-list.lua` in your `mpv/script-modules/` folder, create if needed.
+
 # recent.lua
 
 Modified [recent](https://github.com/hacel/recent).
@@ -126,10 +130,6 @@ Now requires `script-modules/scroll-list.lua`.
 * Changed the overlay appearance to match other scripts.
 * Added item timestamp prefix to list.
 
-## Install
-
-Put `recent.lua` in your `mpv/scripts` folder and `scroll-list.lua` in your `mpv/script-modules/` folder.
-
 # track-list.lua
 
 Modified [track-list](https://github.com/dyphire/mpv-scripts/blob/main/track-list.lua).
@@ -137,10 +137,6 @@ Modified [track-list](https://github.com/dyphire/mpv-scripts/blob/main/track-lis
 Requires `script-modules/scroll-list.lua`.
 
 * Resolves the scroll-list.lua dependency relative to the script's own file location instead of through mpv's `~~` config-dir expansion for portability.
-
-## Install
-
-Put `track-list.lua` in your `mpv/scripts` folder and `scroll-list.lua` in your `mpv/script-modules/` folder.
 
 # Blackbox.js
 
@@ -156,10 +152,6 @@ Install [Blackbox](https://github.com/VideoPlayerCode/mpv-tools) first. Copy `Bl
 # modernx.lua
 
 Modified [ModernX](https://github.com/cyl0/ModernX/) to not overlap script menus with mpv's logo.
-
-## Install
-
-Put `modernx.lua` in your `mpv/scripts` folder.
 
 # (WIP) help.lua
 
